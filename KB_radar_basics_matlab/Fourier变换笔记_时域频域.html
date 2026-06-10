@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时域 ↔ 频域 · Fourier 变换笔记</title>
+
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+    svg: { fontCache: 'global' },
+    options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0C1024; --bg-2:#080B18; --panel:#131A33; --panel-2:#1A2240;
+  --line:#283357; --line-soft:rgba(123,143,196,.16);
+  --ink:#EBEFF9; --ink-dim:#9CA8C9; --ink-faint:#6A7494;
+  --time:#FFC24B; --time-soft:rgba(255,194,75,.14); --time-line:rgba(255,194,75,.32);
+  --freq:#3FD9C6; --freq-soft:rgba(63,217,198,.14); --freq-line:rgba(63,217,198,.32);
+  --op:#C49BFF; --op-soft:rgba(196,155,255,.16);
+  --alias:#FF6B6B; --alias-soft:rgba(255,107,107,.22);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:
+    radial-gradient(900px 500px at 78% -8%, rgba(63,217,198,.07), transparent 60%),
+    radial-gradient(800px 480px at 12% 2%, rgba(255,194,75,.06), transparent 60%),
+    var(--bg);
+  color:var(--ink);
+  font-family:'Inter','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  font-size:16.5px; line-height:1.72; -webkit-font-smoothing:antialiased;
+  letter-spacing:.005em;
+}
+.wrap{max-width:880px; margin:0 auto; padding:0 24px}
+mono,.mono{font-family:'JetBrains Mono',monospace}
+
+/* ---------- scope grid backdrop ---------- */
+.scopebg{position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.5;
+  background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);
+  background-size:44px 44px; mask-image:radial-gradient(circle at 50% 18%, #000 0%, transparent 72%);}
+.content{position:relative; z-index:1}
+
+/* ---------- hero ---------- */
+.hero{padding:72px 0 30px}
+.eyebrow{font-family:'JetBrains Mono',monospace; font-size:12.5px; letter-spacing:.32em;
+  text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:12px}
+.eyebrow::before{content:""; width:30px; height:1px; background:var(--ink-faint)}
+.hero h1{font-family:'Space Grotesk',sans-serif; font-weight:700; line-height:1.02;
+  font-size:clamp(44px,9vw,82px); margin:18px 0 6px; letter-spacing:-.02em}
+.hero h1 .t{color:var(--time)} .hero h1 .f{color:var(--freq)}
+.hero .sub{font-family:'Space Grotesk',sans-serif; font-weight:500; color:var(--ink-dim);
+  font-size:clamp(18px,3vw,23px); letter-spacing:.01em; margin-bottom:22px}
+.lede{font-size:18px; color:var(--ink-dim); max-width:680px}
+.lede b{color:var(--ink); font-weight:600}
+
+.legend{display:flex; flex-wrap:wrap; gap:10px; margin:26px 0 8px}
+.chip{font-family:'JetBrains Mono',monospace; font-size:12.5px; padding:6px 12px;
+  border-radius:999px; border:1px solid var(--line); display:inline-flex; align-items:center; gap:8px}
+.chip .dot{width:9px; height:9px; border-radius:50%}
+.chip.time{border-color:var(--time-line)} .chip.time .dot{background:var(--time); box-shadow:0 0 10px var(--time)}
+.chip.freq{border-color:var(--freq-line)} .chip.freq .dot{background:var(--freq); box-shadow:0 0 10px var(--freq)}
+.chip.op{border-color:rgba(196,155,255,.4)} .chip.op .dot{background:var(--op); box-shadow:0 0 10px var(--op)}
+
+.herofig{margin:30px 0 0; border:1px solid var(--line); border-radius:16px;
+  background:linear-gradient(180deg,rgba(20,26,52,.6),rgba(10,14,28,.4)); overflow:hidden}
+
+/* ---------- generic section ---------- */
+section{padding:30px 0}
+.sec-head{margin:54px 0 8px}
+.sec-num{font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.2em; color:var(--op); }
+.sec-head h2{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(27px,4.5vw,38px);
+  margin:6px 0 0; letter-spacing:-.01em; line-height:1.12}
+.sec-head p.intro{color:var(--ink-dim); font-size:17px; max-width:720px; margin-top:14px}
+
+h3{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:21px; margin:42px 0 8px; letter-spacing:.005em}
+h3 .tag{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500; vertical-align:middle;
+  padding:3px 8px; border-radius:6px; margin-left:10px; letter-spacing:.04em}
+.tag.time{color:var(--time); background:var(--time-soft)}
+.tag.freq{color:var(--freq); background:var(--freq-soft)}
+.tag.op{color:var(--op); background:var(--op-soft)}
+p{margin:14px 0}
+p b{color:var(--ink); font-weight:600}
+.dimnote{color:var(--ink-faint); font-size:14.5px}
+
+/* ---------- relationship overview (3 steps) ---------- */
+.rel3{display:grid; grid-template-columns:repeat(3,1fr); gap:13px; margin-top:18px}
+.relc{display:flex; gap:13px; align-items:flex-start; border:1px solid var(--line); border-radius:13px;
+  padding:16px 16px 17px; background:linear-gradient(180deg,rgba(22,29,56,.6),rgba(12,17,33,.42));
+  border-top:2px solid var(--accent,var(--op))}
+.relc.c-time{--accent:var(--time)} .relc.c-freq{--accent:var(--freq)} .relc.c-op{--accent:var(--op)}
+.relc .rl{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:23px; line-height:1;
+  color:var(--accent); flex:none; width:24px; text-align:center}
+.relc .rt b{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15.5px; color:var(--ink);
+  display:block; margin-bottom:5px; line-height:1.28}
+.relc .rt .d{font-size:12.8px; color:var(--ink-dim); line-height:1.5; display:block}
+
+/* ---------- key insight cards ---------- */
+.cards{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:24px}
+.card{border:1px solid var(--line); border-radius:14px; padding:20px 20px 22px;
+  background:linear-gradient(180deg,rgba(22,29,56,.72),rgba(13,18,34,.55)); position:relative; overflow:hidden}
+.card::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent,var(--op))}
+.card .k{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); letter-spacing:.12em}
+.card h4{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:17.5px; margin:8px 0 8px; color:var(--ink); line-height:1.3}
+.card p{margin:0; font-size:14.6px; color:var(--ink-dim); line-height:1.62}
+.card p code,.dimnote code,p code, li code{font-family:'JetBrains Mono',monospace; font-size:.9em;
+  background:rgba(123,143,196,.13); padding:1px 6px; border-radius:5px; color:var(--ink)}
+.card.c-time{--accent:var(--time)} .card.c-freq{--accent:var(--freq)} .card.c-op{--accent:var(--op)}
+
+/* ---------- figures ---------- */
+figure{margin:26px 0; border:1px solid var(--line); border-radius:16px; overflow:hidden;
+  background:linear-gradient(180deg,rgba(19,26,51,.66),rgba(9,13,26,.5))}
+figure .svgbox{padding:14px 14px 4px}
+.svgbox > svg{display:block; width:100%; height:auto}
+mjx-container svg{width:auto !important; height:auto !important; max-width:100%}
+mjx-container{max-width:100%}
+figcaption{font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink-faint);
+  padding:12px 18px 16px; border-top:1px solid var(--line-soft); line-height:1.6}
+figcaption b{color:var(--ink-dim); font-weight:500}
+
+/* ---------- interactive controls ---------- */
+.controls{display:flex; align-items:center; gap:16px; padding:14px 18px 16px; flex-wrap:wrap;
+  border-top:1px solid var(--line-soft); background:rgba(8,11,24,.4)}
+.controls label{font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink-dim); min-width:max-content}
+.controls input[type=range]{-webkit-appearance:none; appearance:none; flex:1; min-width:160px; height:4px;
+  border-radius:4px; background:var(--line); outline:none}
+.controls input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:17px; height:17px; border-radius:50%;
+  background:var(--op); cursor:pointer; box-shadow:0 0 0 4px rgba(196,155,255,.18)}
+.controls input[type=range]::-moz-range-thumb{width:17px; height:17px; border:none; border-radius:50%;
+  background:var(--op); cursor:pointer; box-shadow:0 0 0 4px rgba(196,155,255,.18)}
+.readout{font-family:'JetBrains Mono',monospace; font-size:13px; padding:6px 12px; border-radius:8px;
+  border:1px solid var(--line); min-width:max-content}
+.readout .ok{color:var(--freq)} .readout .bad{color:var(--alias)}
+
+/* ---------- duality table ---------- */
+.dual{display:grid; grid-template-columns:84px 1fr 1fr; gap:10px; margin-top:8px}
+.dual .hd{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-dim);
+  display:flex; align-items:center; justify-content:center; text-align:center; letter-spacing:.05em}
+.dual .rl{font-size:13px; color:var(--ink-dim); letter-spacing:.04em; line-height:1.35; text-align:center; padding:0 2px}
+.qcell{border:1px solid var(--line); border-radius:13px; padding:14px 15px;
+  background:linear-gradient(180deg,rgba(22,29,56,.6),rgba(12,17,33,.45))}
+.qcell .nm{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; color:var(--ink)}
+.qcell .nm small{font-family:'JetBrains Mono',monospace; font-weight:400; font-size:11px; color:var(--ink-faint); display:block; letter-spacing:.04em; margin-top:1px}
+.qcell .mini{display:flex; gap:8px; margin:11px 0 9px}
+.qcell .mini svg{flex:1; height:42px; background:rgba(8,11,24,.5); border-radius:7px}
+.qcell .desc{font-size:13px; color:var(--ink-dim); line-height:1.5}
+
+/* ---------- generalization table ---------- */
+.gtable{width:100%; border-collapse:collapse; margin-top:18px; font-size:15px}
+.gtable th,.gtable td{text-align:left; padding:13px 16px; border-bottom:1px solid var(--line-soft)}
+.gtable thead th{font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.06em; color:var(--ink-faint);
+  text-transform:uppercase; border-bottom:1px solid var(--line)}
+.gtable tbody tr:hover{background:rgba(123,143,196,.05)}
+.gtable td:first-child{font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--ink); white-space:nowrap}
+.gtable td:last-child{color:var(--ink-dim)}
+.gtable tr.star td:first-child{color:var(--freq)}
+
+/* ---------- callout ---------- */
+.callout{border:1px solid var(--line); border-left:3px solid var(--op); border-radius:12px;
+  padding:18px 20px; margin:22px 0; background:rgba(196,155,255,.05)}
+.callout p{margin:0; color:var(--ink-dim)} .callout p b{color:var(--ink)}
+.callout .lab{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.18em; color:var(--op);
+  text-transform:uppercase; display:block; margin-bottom:7px}
+
+/* ---------- 3-up qualification ---------- */
+.threeup{display:grid; grid-template-columns:repeat(3,1fr); gap:13px; margin-top:18px}
+.qbox{border:1px solid var(--line); border-radius:13px; padding:17px;
+  background:linear-gradient(180deg,rgba(22,29,56,.55),rgba(12,17,33,.4))}
+.qbox .t{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; color:var(--ink)}
+.qbox .s{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-faint); margin:2px 0 9px}
+.qbox p{margin:0; font-size:13.4px; color:var(--ink-dim); line-height:1.55}
+
+footer{padding:48px 0 70px; color:var(--ink-faint); font-size:13.5px; border-top:1px solid var(--line-soft); margin-top:50px}
+footer .mono{color:var(--ink-dim)}
+
+mjx-container{color:var(--ink)}
+.eq{margin:18px 0; overflow-x:auto; padding:4px 0}
+
+@media (max-width:680px){
+  body{font-size:16px}
+  .cards{grid-template-columns:1fr}
+  .rel3{grid-template-columns:1fr}
+  .threeup{grid-template-columns:1fr}
+  .dual{grid-template-columns:58px 1fr; }
+  .dual .col-aper-h{grid-column:2} .dual .col-per-h{display:none}
+  .dual .row-spacer{display:none}
+  .controls{gap:10px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important; transition:none !important}
+}
+.glow-t{animation:pulseT 5.5s ease-in-out infinite}
+.glow-f{animation:pulseF 5.5s ease-in-out infinite}
+@keyframes pulseT{0%,100%{opacity:.92}50%{opacity:.55}}
+@keyframes pulseF{0%,100%{opacity:.55}50%{opacity:.92}}
+</style>
+</head>
+<body>
+<div class="scopebg"></div>
+<div class="content">
+<div class="wrap">
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero">
+    <div class="eyebrow">信号处理 · 概念整理</div>
+    <h1><span class="t">时域</span> ↔ <span class="f">频域</span></h1>
+    <div class="sub">同一个信号，两套坐标系</div>
+    <p class="lede">
+      CTFT、DTFT、DFT、FFT 不是四个互不相干的工具，而是<b>一条采样链</b>上的不同位置；
+      而所有 Fourier 变换背后，是同一个朴素的世界观——<b>用一组模板去测量信号，再用这些成分把信号拼回来</b>。
+      下面先抽出最关键的几条 insight，再用图把它们一张张拆开。
+    </p>
+    <div class="legend">
+      <span class="chip time"><span class="dot"></span>时域 / time</span>
+      <span class="chip freq"><span class="dot"></span>频域 / frequency</span>
+      <span class="chip op"><span class="dot"></span>变换 / 算子</span>
+    </div>
+    <figure class="herofig">
+      <div class="svgbox"><svg id="hero" viewBox="0 0 820 220" role="img" aria-label="时域波形经 Fourier 变换得到频谱"></svg></div>
+    </figure>
+  </header>
+
+  <!-- ===================== RELATIONSHIP OVERVIEW ===================== -->
+  <section id="overview">
+    <div class="sec-head">
+      <div class="sec-num">先记住关系</div>
+      <h2>CTFT · DTFT · DFT · FFT：三步串起来</h2>
+      <p class="intro">钻进细节之前，先把这三句话钉死——它们是后面所有内容的骨架。</p>
+    </div>
+    <figure>
+      <div class="svgbox"><svg id="relstrip" viewBox="0 0 820 160" role="img" aria-label="CTFT 到 DTFT 到 DFT 的三步关系，FFT 是计算 DFT 的算法"></svg></div>
+      <figcaption><b>一条链：</b>连续信号采样 → 频谱被周期复制（DTFT）→ 在一个周期里取 N 个频率样本（DFT）→ FFT 把这步算快。每一步只动一个域，对偶域随之被复制或采样。</figcaption>
+    </figure>
+    <div class="rel3">
+      <div class="relc c-time"><span class="rl">a</span><div class="rt"><b>采样 = 频谱搬移 / 复制</b><span class="d">CTFT → DTFT：时域按 F<sub>s</sub> 采样，原谱沿频率轴每隔 F<sub>s</sub> 复制一份再叠加（Ω = 2πf/F<sub>s</sub>）。</span></div></div>
+      <div class="relc c-freq"><span class="rl">b</span><div class="rt"><b>DFT = 对 DTFT 采样</b><span class="d">DTFT → DFT：在 Ω = 2πk/N 处取 N 个等间隔频率样本；对偶地，时域被周期延拓。</span></div></div>
+      <div class="relc c-op"><span class="rl">c</span><div class="rt"><b>FFT = 快速算 DFT</b><span class="d">同一个 DFT，复杂度从 O(N²) 降到 O(N·logN)。它是算法，不是新的变换。</span></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== KEY INSIGHTS ===================== -->
+  <section id="insights">
+    <div class="sec-head">
+      <div class="sec-num">KEY INSIGHTS</div>
+      <h2>最关键的七条</h2>
+      <p class="intro">如果只记住几句话，记这些。后面的图都是在把它们讲清楚。</p>
+    </div>
+    <div class="cards">
+      <div class="card c-time">
+        <div class="k">01 · 采样 → 复制</div>
+        <h4>时域采样 = 频域以 F<sub>s</sub> 复制</h4>
+        <p>把 \(x_c(t)\) 按 \(F_s\) 采样，频谱会沿频率轴每隔 \(F_s\) 复制一份。DTFT 就是这一堆复制的结果，也因此天然以 \(2\pi\) 为周期。</p>
+      </div>
+      <div class="card c-op">
+        <div class="k">02 · 对偶</div>
+        <h4>一个域离散 ⟺ 另一个域周期</h4>
+        <p>这一句话同时统一了 CTFT / Fourier Series / DTFT / DFT。哪个域被采样（离散），另一个域就被周期化。</p>
+      </div>
+      <div class="card c-freq">
+        <div class="k">03 · DFT</div>
+        <h4>DFT 是对 DTFT 采样</h4>
+        <p>\(X[k]=X_d(e^{j\Omega})\big|_{\Omega=2\pi k/N}\)。它只取 \(N\) 个等间隔频率样本，并隐含<b>时域周期延拓</b>——这是 spectral leakage 的根源。</p>
+      </div>
+      <div class="card c-freq">
+        <div class="k">04 · 单位</div>
+        <h4>不是 [0,1] Hz，是 [0,1) cyc/sample</h4>
+        <p>同一个点四种写法：<code>f</code> Hz ↔ <code>Ω=2πf/Fs</code> rad/sample ↔ <code>ν=k/N</code> cycles/sample ↔ bin <code>k</code>。</p>
+      </div>
+      <div class="card c-op">
+        <div class="k">05 · FFT</div>
+        <h4>FFT 不是新变换</h4>
+        <p>它只是把 DFT 从 \(O(N^2)\) 加速到 \(O(N\log N)\) 的算法，数学对象与 DFT 完全相同。</p>
+      </div>
+      <div class="card c-time">
+        <div class="k">06 · 世界观</div>
+        <h4>换基 = 模板匹配</h4>
+        <p>analysis 用 inner product 量每个频率成分（匹配模板），synthesis 把成分加回去重构信号（换基）。正交基让两者是同一件事。</p>
+      </div>
+      <div class="card c-freq">
+        <div class="k">07 · 为什么是它</div>
+        <h4>Fourier 基是 LTI 的特征基</h4>
+        <p>复指数是 LTI 系统的 eigenfunction，所以 Fourier 把卷积对角化成逐点相乘。这才是它在信号处理里独一无二的真正原因。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PART 1 ===================== -->
+  <section id="part1">
+    <div class="sec-head">
+      <div class="sec-num">PART 01</div>
+      <h2>从 CTFT 到 FFT：一条采样链</h2>
+      <p class="intro">这四个名字其实是沿着一条链往下走：先在时域采样，再在频域采样，最后用一个算法把它算快。每一步都在两个域之间制造"离散↔周期"的对偶。</p>
+    </div>
+
+    <h3>全景：三个域，两次采样 <span class="tag op">总览</span></h3>
+    <p>从左到右是三个落脚点。每个面板上方是<span style="color:var(--time)">时域信号</span>，下方是<span style="color:var(--freq)">频谱</span>。注意频谱形状随每一步采样如何"长出周期"。</p>
+    <figure>
+      <div class="svgbox"><svg id="chain" viewBox="0 0 820 300"></svg></div>
+      <figcaption><b>读法：</b>连续信号 → 时域采样后频谱按 F<sub>s</sub> 复制（DTFT，频率连续但周期）→ 频域再取 N 个样本（DFT，频率也离散了）。FFT 只是计算最右边那一步的快速算法。</figcaption>
+    </figure>
+
+    <h3>① 采样为什么产生频谱复制 <span class="tag time">CTFT → DTFT</span></h3>
+    <p>
+      时域采样等价于乘上一串冲激（impulse train），而<b>时域相乘 = 频域卷积</b>。冲激串的频谱还是一串冲激（间隔 \(F_s\)），所以原谱被卷积后就沿频率轴每隔 \(F_s\) 复制一份。映射关系是 \(\Omega = 2\pi f / F_s\)。
+    </p>
+    <div class="eq">\[ X_d(e^{j\Omega}) = F_s\sum_{k=-\infty}^{\infty} X_c\!\Big(F_s\big(\tfrac{\Omega}{2\pi}-k\big)\Big) \]</div>
+    <p>关键后果：如果信号最高频率 \(B\) 满足 \(F_s < 2B\)（违反 Nyquist），相邻复制就会<span style="color:var(--alias)">重叠 = 混叠 aliasing</span>。拖动滑块看这件事发生：</p>
+    <figure>
+      <div class="svgbox"><svg id="alias" viewBox="0 0 820 290"></svg></div>
+      <div class="controls">
+        <label>采样率 F<sub>s</sub></label>
+        <input id="aliasFs" type="range" min="1.2" max="4" step="0.05" value="3">
+        <span id="aliasOut" class="readout"></span>
+      </div>
+      <figcaption><b>上：</b>原始 baseband 频谱（半宽 B）。<b>下：</b>采样后以 F<sub>s</sub> 复制的版本，虚线为 Nyquist 频率 ±F<sub>s</sub>/2。F<sub>s</sub> &lt; 2B 时相邻副本重叠（红色区）。</figcaption>
+    </figure>
+
+    <h3>② 四种变换的统一：离散 ⟺ 周期 <span class="tag op">对偶</span></h3>
+    <p>把"时间是否离散"和"信号是否周期"做成 2×2，四种 Fourier 工具刚好各占一格。规律只有一条：<b>一个域被离散化，对偶域就被周期化</b>。</p>
+    <figure>
+      <div class="svgbox" style="padding:18px">
+        <div class="dual">
+          <div class="hd"></div>
+          <div class="hd col-aper-h">非周期 / aperiodic</div>
+          <div class="hd col-per-h">周期 / periodic</div>
+
+          <div class="hd rl">连续时间</div>
+          <div class="qcell">
+            <div class="nm">CTFT<small>continuous-time FT</small></div>
+            <div class="mini"><svg viewBox="0 0 120 42" data-mini="ct-aper-t"></svg><svg viewBox="0 0 120 42" data-mini="ct-aper-f"></svg></div>
+            <div class="desc">连续非周期时间 → 连续非周期频谱。</div>
+          </div>
+          <div class="qcell">
+            <div class="nm">Fourier Series<small>periodic signal</small></div>
+            <div class="mini"><svg viewBox="0 0 120 42" data-mini="ct-per-t"></svg><svg viewBox="0 0 120 42" data-mini="ct-per-f"></svg></div>
+            <div class="desc">连续周期时间 → <b>离散</b>谱线（谐波 kω₀）。</div>
+          </div>
+
+          <div class="row-spacer hd"></div><div class="row-spacer"></div><div class="row-spacer"></div>
+
+          <div class="hd rl">离散时间</div>
+          <div class="qcell">
+            <div class="nm">DTFT<small>discrete-time FT</small></div>
+            <div class="mini"><svg viewBox="0 0 120 42" data-mini="dt-aper-t"></svg><svg viewBox="0 0 120 42" data-mini="dt-aper-f"></svg></div>
+            <div class="desc"><b>离散</b>时间 → 连续但 <b>周期</b>（2π）的频谱。</div>
+          </div>
+          <div class="qcell">
+            <div class="nm">DFT / DFS<small>finite + periodic</small></div>
+            <div class="mini"><svg viewBox="0 0 120 42" data-mini="dt-per-t"></svg><svg viewBox="0 0 120 42" data-mini="dt-per-f"></svg></div>
+            <div class="desc"><b>离散周期</b>时间 → <b>离散周期</b>频谱。两个域都被网格化。</div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>对角看：</b>越往下（时间离散），频谱越周期；越往右（时间周期），频谱越离散。DFT 在右下角，两个方向都占满，所以最"有限、最线代"。</figcaption>
+    </figure>
+
+    <h3>③ DFT = 在一个周期上取 N 个频率样本 <span class="tag freq">DTFT → DFT</span></h3>
+    <p>
+      长度 \(N\) 的序列，其 DFT 正是 DTFT 在 \(\Omega_k = 2\pi k/N\) 处的采样：
+    </p>
+    <div class="eq">\[ X[k]=\sum_{n=0}^{N-1}x[n]\,e^{-j2\pi kn/N}=X_d(e^{j\Omega})\Big|_{\Omega=2\pi k/N},\quad k=0,\dots,N-1 \]</div>
+    <p>因为在频域采样，对偶地<b>时域被周期延拓</b>：DFT 默认你这 N 个点是某个周期信号的一个周期。频率分辨率（bin 间距）由此固定为 \(F_s/N\)，spectral leakage、windowing 这些现象都从这里来。</p>
+
+    <h3>④ 把频率单位一次对齐 <span class="tag freq">units</span></h3>
+    <p>对话里那句"DFT 把频率 normalize 到 [0,1] Hz"需要修正：是 <b>[0,1) cycles/sample</b>，与采样率无关；只有再乘上 \(F_s\) 才回到物理 Hz。拖动滑块，看同一个点在四条轴上的四种读数同步移动：</p>
+    <figure>
+      <div class="svgbox"><svg id="units" viewBox="0 0 820 280"></svg></div>
+      <div class="controls">
+        <label>归一化频率 ν</label>
+        <input id="unitNu" type="range" min="0" max="1" step="0.005" value="0.25">
+        <span id="unitOut" class="readout"></span>
+      </div>
+      <figcaption><b>设定：</b>F<sub>s</sub> = 8 kHz，N = 16。四条轴是同一个频率的四种坐标：物理 <b>f</b>（Hz）/ 数字角频率 <b>Ω</b>（rad/sample）/ 归一化 <b>ν</b>（cycles/sample）/ DFT bin <b>k</b>。DFT bin 必须取整数。</figcaption>
+    </figure>
+
+    <h3>⑤ FFT：只是把同一个 DFT 算快 <span class="tag op">algorithm</span></h3>
+    <p>FFT 利用复指数的对称性做分治，把 \(O(N^2)\) 降到 \(O(N\log N)\)，但<b>输出和直接算 DFT 一模一样</b>。它是算法，不是新的变换对象。</p>
+    <div class="callout">
+      <span class="lab">一句话串起来</span>
+      <p>CTFT 是连续信号的频谱；<b>采样后频谱按 F<sub>s</sub> 周期复制 → DTFT</b>；<b>在一个周期上取 N 个频率样本 → DFT</b>（同时隐含时域周期化）；<b>FFT 是快速计算 DFT 的算法</b>。</p>
+    </div>
+  </section>
+
+  <!-- ===================== PART 2 ===================== -->
+  <section id="part2">
+    <div class="sec-head">
+      <div class="sec-num">PART 02</div>
+      <h2>Fourier 的世界观</h2>
+      <p class="intro">换基、模板匹配、LTI 特征基——这是同一件事被越看越深的三层。把它们看穿，Fourier 就从"公式"变成了"投影"。</p>
+    </div>
+
+    <h3>① 换基：同一个向量，换坐标系 <span class="tag time">change of basis</span></h3>
+    <p>
+      长度 \(N\) 的信号是 \(\mathbb{C}^N\) 里的一个向量。DFT 把它从 standard basis \(\{e_n\}\) 转到 Fourier basis \(\{\varphi_k[n]=e^{j2\pi kn/N}\}\)。\(X[k]\) 就是它在第 \(k\) 个 Fourier 方向上的坐标——<b>没有创造信息，只是换了一套轴</b>。
+    </p>
+    <figure>
+      <div class="svgbox"><svg id="basis" viewBox="0 0 820 250"></svg></div>
+      <figcaption>同一个点（白）在<span style="color:var(--time)">标准基</span>下读出一组坐标，在旋转后的<span style="color:var(--freq)">Fourier 基</span>下读出另一组坐标。变换 = 旋转坐标轴。</figcaption>
+    </figure>
+
+    <h3>② 模板匹配：每个系数都是一次内积 <span class="tag freq">template matching</span></h3>
+    <p>
+      把 \(X[k]=\langle x,\varphi_k\rangle\) 读成：拿信号去和频率 \(k/N\) 的复正弦做内积，<b>内积大 = 信号里这个频率成分多</b>。下面把一个由两个正弦合成的信号，用一支可调频率的"探针模板"去扫——你会看到匹配强度在信号真正含有的频率处冲高。这个扫描出来的曲线，就是频谱本身。
+    </p>
+    <figure>
+      <div class="svgbox"><svg id="match" viewBox="0 0 820 360"></svg></div>
+      <div class="controls">
+        <label>探针频率 f<sub>probe</sub></label>
+        <input id="matchF" type="range" min="0" max="0.5" step="0.002" value="0.08">
+        <span id="matchOut" class="readout"></span>
+      </div>
+      <figcaption><b>上：</b>信号 x[n]（琥珀）叠加当前<span style="color:var(--freq)">探针正弦</span>。<b>下：</b>匹配强度 |⟨x, φ_f⟩| 随频率变化的曲线，亮点是当前探针位置。本例信号含 0.08 与 0.22 cyc/sample 两个分量，曲线在那里出现两个峰。</figcaption>
+    </figure>
+    <div class="callout">
+      <span class="lab">为什么这两件事是同一件事</span>
+      <p>当基 \(\{\varphi_k\}\) 正交时，向量在某方向上的坐标 <b>恰好等于</b> 它与该基向量的内积：\(c_k=\langle x,\varphi_k\rangle\)。所以 <b>analysis</b>（用内积找成分强度）和 <b>synthesis</b>（用成分重构）只是一枚硬币的两面。</p>
+    </div>
+
+    <h3>③ "任何信号都能被这组基表示吗？"——要加限定 <span class="tag op">completeness</span></h3>
+    <p>这句话在不同变换里有不同的精确版本，核心差别在于基是<b>可数离散</b>还是<b>连续</b>，以及空间是否 complete。</p>
+    <div class="threeup">
+      <div class="qbox">
+        <div class="t">DFT</div>
+        <div class="s">finite · clean</div>
+        <p>完全成立。\(\mathbb{C}^N\) 里任意向量都能由 \(N\) 个 DFT 基精确表示。最有限、最干净的线代情形。</p>
+      </div>
+      <div class="qbox">
+        <div class="t">Fourier Series</div>
+        <div class="s">periodic · countable</div>
+        <p>对周期信号，基是<b>可数</b>的离散谐波 \(\{e^{jk\omega_0 t}\}\)。适合周期信号的展开。</p>
+      </div>
+      <div class="qbox">
+        <div class="t">CTFT</div>
+        <div class="s">aperiodic · generalized</div>
+        <p>频率连续，\(e^{j\omega t}\) 能量无限、不属于普通 \(L^2\)，是 <b>generalized basis</b>，要用 distribution / Hilbert 空间语言才严谨。</p>
+      </div>
+    </div>
+
+    <h3>④ 真正的原因：Fourier 基是 LTI 的特征基 <span class="tag op">eigenbasis</span></h3>
+    <p>
+      复指数过 LTI 系统不改变形状，只被缩放和相移——它是 LTI 系统的 <b>eigenfunction</b>，\(H(\omega)\) 是对应的特征值。于是时域里麻烦的卷积，在频域变成简单的<b>逐点相乘</b>：Fourier 把卷积算子<b>对角化</b>了。这才是它区别于"随便一组正交基"的地方。
+    </p>
+    <div class="eq">\[ e^{j\omega t}\;\xrightarrow{\;\text{LTI}\;}\;H(\omega)\,e^{j\omega t}, \qquad y=h*x\;\Longleftrightarrow\;Y(\omega)=H(\omega)\,X(\omega) \]</div>
+    <figure>
+      <div class="svgbox"><svg id="lti" viewBox="0 0 820 300"></svg></div>
+      <figcaption><b>上：</b>复指数进出 LTI 系统，频率不变、仅幅度/相位改变（特征函数）。<b>下：</b>时域卷积（纠缠的滑动重叠）⟺ 频域逐点相乘（对角化）。</figcaption>
+    </figure>
+
+    <h3>⑤ 同一个抽象，推广到一切变换 <span class="tag freq">generalization</span></h3>
+    <p>一旦把它看成"<b>用一组 probes/templates 去测量信号</b>"，很多方法都落进同一个框架。Fourier 的特别只在于它的模板是复指数——也就是 shift / 卷积 / LTI 的天然语言。</p>
+    <table class="gtable">
+      <thead><tr><th>Transform</th><th>它的基 / 模板</th></tr></thead>
+      <tbody>
+        <tr class="star"><td>Fourier</td><td>全局复正弦 global sinusoids</td></tr>
+        <tr><td>STFT</td><td>加窗正弦 windowed sinusoids</td></tr>
+        <tr><td>Wavelet</td><td>平移 + 伸缩的小波 shifted &amp; scaled wavelets</td></tr>
+        <tr><td>DCT</td><td>余弦基 cosine basis</td></tr>
+        <tr><td>PCA</td><td>数据自适应正交基 data-adapted orthogonal basis</td></tr>
+        <tr><td>SVD</td><td>最优低秩基 optimal low-rank basis</td></tr>
+        <tr><td>Neural rep.</td><td>学习出来的字典 learned basis / dictionary</td></tr>
+      </tbody>
+    </table>
+    <div class="callout" style="border-left-color:var(--freq)">
+      <span class="lab" style="color:var(--freq)">收束</span>
+      <p><b>transform = analysis operator</b>：用一组模板测量信号，得到系数。<b>inverse transform = synthesis operator</b>：用这些系数把信号重建。当模板张成的空间 complete 时，重建是无损的。Fourier 只是这个范式里，模板恰好是复指数、因而能对角化一切 shift-invariant 现象的那个特例。</p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="mono">FOURIER · TIME ↔ FREQUENCY</div>
+    <p>整理自原对话讨论。配色约定：<span style="color:var(--time)">时域 amber</span> / <span style="color:var(--freq)">频域 cyan</span> / <span style="color:var(--op)">变换 violet</span>。三个交互图可拖动滑块探索。</p>
+  </footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const NS="http://www.w3.org/2000/svg";
+  const C={time:'#FFC24B',freq:'#3FD9C6',op:'#C49BFF',alias:'#FF6B6B',
+           ink:'#EBEFF9',dim:'#9CA8C9',faint:'#6A7494',line:'#283357'};
+
+  function el(tag,attrs){const e=document.createElementNS(NS,tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+  function add(p,tag,attrs){const e=el(tag,attrs);p.appendChild(e);return e;}
+  function txt(p,x,y,s,attrs){const t=add(p,'text',Object.assign({x:x,y:y},attrs||{}));t.textContent=s;return t;}
+  function sinePath(x0,x1,yc,amp,cycles,phase,n){
+    phase=phase||0;n=n||140;let d='';
+    for(let i=0;i<=n;i++){const t=i/n;const X=x0+(x1-x0)*t;const Y=yc-amp*Math.sin(2*Math.PI*cycles*t+phase);d+=(i?'L':'M')+X.toFixed(2)+' '+Y.toFixed(2)+' ';}
+    return d.trim();
+  }
+  function gauss(x,cx,w){return Math.exp(-Math.pow((x-cx)/w,2));}
+  function gaussPath(x0,x1,yc,A,centers,w,n){
+    n=n||120;let d='';
+    for(let i=0;i<=n;i++){const t=i/n;const X=x0+(x1-x0)*t;let g=0;for(const c of centers)g+=gauss(X,c,w);const Y=yc-A*Math.min(g,1);d+=(i?'L':'M')+X.toFixed(2)+' '+Y.toFixed(2)+' ';}
+    return d.trim();
+  }
+  function stems(svg,x0,x1,yc,amp,cycles,M,color,r){
+    r=r||2.4;
+    for(let i=0;i<M;i++){const t=(i+0.5)/M;const X=x0+(x1-x0)*t;const Y=yc-amp*Math.sin(2*Math.PI*cycles*t);
+      add(svg,'line',{x1:X,y1:yc,x2:X,y2:Y,stroke:color,'stroke-width':1.4,opacity:.8});
+      add(svg,'circle',{cx:X,cy:Y,r:r,fill:color});}
+  }
+  function defsGlow(svg,id,color,blur){
+    const defs=add(svg,'defs');
+    const f=add(defs,'filter',{id:id,x:'-30%',y:'-60%',width:'160%',height:'220%'});
+    add(f,'feGaussianBlur',{in:'SourceGraphic',stdDeviation:blur||2.6,result:'b'});
+    const m=add(f,'feMerge');add(m,'feMergeNode',{in:'b'});add(m,'feMergeNode',{in:'SourceGraphic'});
+  }
+  function axis(svg,x0,x1,y,color,label){
+    add(svg,'line',{x1:x0,y1:y,x2:x1,y2:y,stroke:color||C.line,'stroke-width':1});
+  }
+  function safe(fn){try{fn();}catch(e){if(window.console)console.warn(e);}}
+
+  /* ---------------- HERO ---------------- */
+  safe(function(){
+    const s=document.getElementById('hero');if(!s)return;
+    defsGlow(s,'gT',C.time,3);defsGlow(s,'gF',C.freq,3);
+    // baseline grid ticks
+    add(s,'line',{x1:40,y1:110,x2:340,y2:110,stroke:C.line,'stroke-width':1,opacity:.5});
+    add(s,'line',{x1:480,y1:200,x2:780,y2:200,stroke:C.line,'stroke-width':1,opacity:.5});
+    // time wave (left)
+    const tw=sinePath(40,340,108,42,1.7,0,180);
+    add(s,'path',{d:tw,fill:'none',stroke:C.time,'stroke-width':2.6,filter:'url(#gT)','stroke-linecap':'round'});
+    txt(s,40,40,'x(t)',{fill:C.time,'font-family':'JetBrains Mono','font-size':14});
+    txt(s,40,196,'时域 time',{fill:C.faint,'font-family':'JetBrains Mono','font-size':11,'letter-spacing':'.1em'});
+    // transform arrow (center)
+    add(s,'circle',{cx:410,cy:108,r:30,fill:'none',stroke:C.op,'stroke-width':1.5,opacity:.85});
+    txt(s,410,116,'\u2131',{fill:C.op,'font-size':30,'text-anchor':'middle','font-family':'Space Grotesk'});
+    add(s,'path',{d:'M348 108 L378 108',stroke:C.op,'stroke-width':1.6,'marker-end':'url(#ah)'});
+    add(s,'path',{d:'M442 108 L474 108',stroke:C.op,'stroke-width':1.6,'marker-end':'url(#ah)'});
+    const defs=add(s,'defs');
+    const mk=add(defs,'marker',{id:'ah',markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto'});
+    add(mk,'path',{d:'M0 0 L6 3 L0 6 Z',fill:C.op});
+    // spectrum bars (right)
+    const bars=[[510,55],[545,130],[580,30],[615,90],[650,22],[690,150],[725,42],[760,70]];
+    bars.forEach(function(b){add(s,'line',{x1:b[0],y1:200,x2:b[0],y2:200-b[1],stroke:C.freq,'stroke-width':4,'stroke-linecap':'round',opacity:.95});
+      add(s,'circle',{cx:b[0],cy:200-b[1],r:3.4,fill:C.freq,filter:'url(#gF)'});});
+    txt(s,510,40,'X(f)',{fill:C.freq,'font-family':'JetBrains Mono','font-size':14});
+    txt(s,650,196,'频域 frequency',{fill:C.faint,'font-family':'JetBrains Mono','font-size':11,'letter-spacing':'.1em','text-anchor':'end'});
+  });
+
+  /* ---------------- RELATIONSHIP STRIP ---------------- */
+  safe(function(){
+    const s=document.getElementById('relstrip');if(!s)return;
+    const defs=add(s,'defs');
+    const mk=add(defs,'marker',{id:'ra',markerWidth:9,markerHeight:9,refX:6,refY:3,orient:'auto'});
+    add(mk,'path',{d:'M0 0 L6 3 L0 6 Z',fill:C.op});
+    const nodes=[{cx:105,t:'CTFT',s:'连续信号',col:C.time},
+                 {cx:410,t:'DTFT',s:'离散时间',col:C.freq},
+                 {cx:715,t:'DFT', s:'有限·周期',col:C.freq}];
+    nodes.forEach(function(n){
+      add(s,'rect',{x:n.cx-65,y:34,width:130,height:54,rx:13,fill:'rgba(8,11,24,.5)',stroke:n.col,'stroke-width':1.6});
+      txt(s,n.cx,63,n.t,{fill:n.col,'font-family':'Space Grotesk','font-weight':700,'font-size':22,'text-anchor':'middle'});
+      txt(s,n.cx,80,n.s,{fill:C.faint,'font-family':'JetBrains Mono','font-size':10.5,'text-anchor':'middle'});
+    });
+    function arrow(x0,x1,top,bot){
+      const y=61;
+      add(s,'path',{d:'M'+x0+' '+y+' L'+x1+' '+y,stroke:C.op,'stroke-width':1.8,'marker-end':'url(#ra)'});
+      const mid=(x0+x1)/2;
+      txt(s,mid,y-14,top,{fill:C.op,'font-family':'JetBrains Mono','font-size':12,'text-anchor':'middle'});
+      txt(s,mid,y+22,bot,{fill:C.dim,'font-family':'JetBrains Mono','font-size':10.5,'text-anchor':'middle'});
+      return mid;
+    }
+    const m1=arrow(172,343,'采样 ×Fs','⇒ 频谱复制');
+    const m2=arrow(477,648,'频域采样','⇒ 取 N 个样本');
+    // tiny spectra glyphs: m1 = one hump -> three humps
+    (function(){const y=126;
+      add(s,'path',{d:gaussPath(m1-46,m1-18,y,12,[m1-32],8,40),fill:'none',stroke:C.freq,'stroke-width':1.4});
+      txt(s,m1,y-3,'→',{fill:C.faint,'font-size':12,'text-anchor':'middle','font-family':'JetBrains Mono'});
+      add(s,'path',{d:gaussPath(m1+16,m1+50,y,11,[m1+22,m1+33,m1+44],5,60),fill:'none',stroke:C.freq,'stroke-width':1.4});
+    })();
+    // m2 = continuous curve -> sampled stems
+    (function(){const y=126;
+      add(s,'path',{d:gaussPath(m2-48,m2-18,y,12,[m2-41,m2-33,m2-25],6,50),fill:'none',stroke:C.freq,'stroke-width':1.4});
+      txt(s,m2,y-3,'→',{fill:C.faint,'font-size':12,'text-anchor':'middle','font-family':'JetBrains Mono'});
+      const sx=m2+14;for(let i=0;i<5;i++){const X=sx+i*7;const h=[6,11,13,9,6][i];
+        add(s,'line',{x1:X,y1:y,x2:X,y2:y-h,stroke:C.freq,'stroke-width':1.6});add(s,'circle',{cx:X,cy:y-h,r:1.3,fill:C.freq});}
+    })();
+    // FFT badge under DFT
+    add(s,'path',{d:'M715 88 L715 106',stroke:C.op,'stroke-width':1.4,'stroke-dasharray':'3 3',opacity:.7});
+    add(s,'rect',{x:620,y:106,width:190,height:36,rx:10,fill:'rgba(196,155,255,.08)',stroke:C.op,'stroke-width':1.3});
+    txt(s,715,129,'FFT  ·  O(N²) → O(N·logN)',{fill:C.op,'font-family':'JetBrains Mono','font-size':11.5,'text-anchor':'middle','font-weight':500});
+  });
+
+  /* ---------------- CHAIN ---------------- */
+  safe(function(){
+    const s=document.getElementById('chain');if(!s)return;
+    defsGlow(s,'cT',C.time,2.2);defsGlow(s,'cF',C.freq,2.2);
+    const px=[40,300,560], pw=220;
+    const titles=['连续 · CONTINUOUS','离散 · DTFT','离散+周期 · DFT / FFT'];
+    const subt=['x(t)  →  X(f)','x[n]  →  X(eʲᏰ)','x[n]  →  X[k]'];
+    px.forEach(function(x,idx){
+      add(s,'rect',{x:x,y:14,width:pw,height:272,rx:13,fill:'rgba(8,11,24,.4)',stroke:C.line,'stroke-width':1});
+      txt(s,x+16,40,titles[idx],{fill:C.dim,'font-family':'Space Grotesk','font-weight':600,'font-size':13});
+      txt(s,x+16,58,subt[idx],{fill:C.faint,'font-family':'JetBrains Mono','font-size':11});
+      // time mini
+      const tcy=110, tx0=x+18, tx1=x+pw-18;
+      add(s,'line',{x1:tx0,y1:tcy,x2:tx1,y2:tcy,stroke:C.line,'stroke-width':1,opacity:.6});
+      txt(s,tx0,84,'time',{fill:C.faint,'font-family':'JetBrains Mono','font-size':10});
+      if(idx===0){add(s,'path',{d:sinePath(tx0,tx1,tcy,26,2,0,160),fill:'none',stroke:C.time,'stroke-width':2.4,filter:'url(#cT)','stroke-linecap':'round'});}
+      else{stems(s,tx0,tx1,tcy,26,2,11,C.time,2.3); if(idx===2){txt(s,tx1,84,'周期延拓',{fill:C.faint,'font-family':'JetBrains Mono','font-size':9,'text-anchor':'end'});}}
+      // freq mini
+      const fcy=240, fx0=x+18, fx1=x+pw-18, mid=(fx0+fx1)/2;
+      add(s,'line',{x1:fx0,y1:fcy,x2:fx1,y2:fcy,stroke:C.line,'stroke-width':1,opacity:.6});
+      txt(s,fx0,164,'freq',{fill:C.faint,'font-family':'JetBrains Mono','font-size':10});
+      if(idx===0){add(s,'path',{d:gaussPath(fx0,fx1,fcy,52,[mid],26,90),fill:'none',stroke:C.freq,'stroke-width':2.4,filter:'url(#cF)'});}
+      else if(idx===1){const span=fx1-fx0;add(s,'path',{d:gaussPath(fx0,fx1,fcy,46,[mid-span*0.42,mid,mid+span*0.42],18,140),fill:'none',stroke:C.freq,'stroke-width':2.2,filter:'url(#cF)'});}
+      else{ // sampled bars under envelope
+        const span=fx1-fx0;const env=function(X){return 46*Math.min(gauss(X,mid-span*0.42,18)+gauss(X,mid,18)+gauss(X,mid+span*0.42,18),1);};
+        add(s,'path',{d:gaussPath(fx0,fx1,fcy,46,[mid-span*0.42,mid,mid+span*0.42],18,140),fill:'none',stroke:C.freq,'stroke-width':1,opacity:.4,'stroke-dasharray':'3 3'});
+        const Nb=9;for(let i=0;i<Nb;i++){const X=fx0+span*(i+0.5)/Nb;const h=env(X);add(s,'line',{x1:X,y1:fcy,x2:X,y2:fcy-h,stroke:C.freq,'stroke-width':3,'stroke-linecap':'round'});add(s,'circle',{cx:X,cy:fcy-h,r:2,fill:C.freq});}
+      }
+    });
+    // arrows between panels
+    const defs=add(s,'defs');const mk=add(defs,'marker',{id:'ch',markerWidth:9,markerHeight:9,refX:6,refY:3,orient:'auto'});add(mk,'path',{d:'M0 0 L6 3 L0 6 Z',fill:C.op});
+    [[270,'采样 ×Fs','频域复制'],[530,'频域采样 N点','时域周期化']].forEach(function(a){
+      add(s,'path',{d:'M'+(a[0]-8)+' 150 L'+(a[0]+22)+' 150',stroke:C.op,'stroke-width':1.6,'marker-end':'url(#ch)'});
+      txt(s,a[0]+7,134,a[1],{fill:C.op,'font-family':'JetBrains Mono','font-size':9.5,'text-anchor':'middle'});
+      txt(s,a[0]+7,176,a[2],{fill:C.faint,'font-family':'JetBrains Mono','font-size':9,'text-anchor':'middle'});
+    });
+  });
+
+  /* ---------------- ALIASING (interactive) ---------------- */
+  safe(function(){
+    const s=document.getElementById('alias');if(!s)return;
+    defsGlow(s,'aF',C.freq,2);
+    const cx0=410, wB=66, range={x0:30,x1:790};
+    // static: baseband row
+    const yA=92;
+    add(s,'line',{x1:range.x0,y1:yA,x2:range.x1,y2:yA,stroke:C.line,'stroke-width':1});
+    txt(s,range.x0,44,'X꜀(f) — 原始 baseband 频谱',{fill:C.dim,'font-family':'JetBrains Mono','font-size':11.5});
+    // baseband triangle
+    add(s,'path',{d:'M'+(cx0-wB)+' '+yA+' L'+cx0+' '+(yA-60)+' L'+(cx0+wB)+' '+yA+' Z',fill:'rgba(63,217,198,.16)',stroke:C.freq,'stroke-width':2});
+    txt(s,cx0,yA+16,'±B',{fill:C.faint,'font-family':'JetBrains Mono','font-size':10,'text-anchor':'middle'});
+    add(s,'line',{x1:cx0,y1:yA,x2:cx0,y2:yA-60,stroke:C.freq,'stroke-width':.6,opacity:.4,'stroke-dasharray':'2 3'});
+    // dynamic row group
+    const yB=232;
+    add(s,'line',{x1:range.x0,y1:yB,x2:range.x1,y2:yB,stroke:C.line,'stroke-width':1});
+    txt(s,range.x0,166,'X_d — 采样后（按 Fs 复制）',{fill:C.dim,'font-family':'JetBrains Mono','font-size':11.5});
+    const g=add(s,'g');
+    const slider=document.getElementById('aliasFs'), out=document.getElementById('aliasOut');
+    function draw(){
+      while(g.firstChild)g.removeChild(g.firstChild);
+      const Fs=parseFloat(slider.value); const FsPx=Fs*wB; const aliasing=Fs<2;
+      // overlap shading first
+      if(aliasing){
+        for(let k=-3;k<=3;k++){if(k===0)continue;}
+        // overlaps between adjacent replicas centered at m*FsPx
+        for(let m=-2;m<=1;m++){
+          const cL=cx0+m*FsPx, cR=cx0+(m+1)*FsPx;
+          const ovL=cR-wB, ovR=cL+wB;
+          if(ovR>ovL){const xL=Math.max(ovL,range.x0),xR=Math.min(ovR,range.x1);
+            if(xR>xL)add(g,'rect',{x:xL,y:yB-62,width:xR-xL,height:62,fill:'rgba(255,107,107,.22)'});}
+        }
+      }
+      // replicas
+      for(let k=-3;k<=3;k++){
+        const c=cx0+k*FsPx;
+        if(c+wB<range.x0-4||c-wB>range.x1+4)continue;
+        const col=(k===0)?C.freq:C.freq;
+        const op=(k===0)?1:.85;
+        add(g,'path',{d:'M'+(c-wB)+' '+yB+' L'+c+' '+(yB-58)+' L'+(c+wB)+' '+yB+' Z',
+          fill:(k===0?'rgba(63,217,198,.18)':'rgba(63,217,198,.10)'),stroke:col,'stroke-width':(k===0?2:1.5),opacity:op,filter:(k===0?'url(#aF)':'')});
+      }
+      // Nyquist lines
+      [-1,1].forEach(function(sgn){const xn=cx0+sgn*FsPx/2;if(xn>range.x0&&xn<range.x1){
+        add(g,'line',{x1:xn,y1:yB+4,x2:xn,y2:yB-70,stroke:C.op,'stroke-width':1,'stroke-dasharray':'4 4',opacity:.8});
+      }});
+      txt(g,cx0+FsPx/2,yB+18,'Fs/2',{fill:C.op,'font-family':'JetBrains Mono','font-size':10,'text-anchor':'middle'});
+      // Fs span marker
+      add(g,'line',{x1:cx0,y1:yB-58,x2:cx0+FsPx,y2:yB-58,stroke:C.faint,'stroke-width':.8,opacity:.5});
+      txt(g,cx0+FsPx/2,yB-63,'Fs',{fill:C.faint,'font-family':'JetBrains Mono','font-size':10,'text-anchor':'middle'});
+      out.innerHTML='Fs = '+Fs.toFixed(2)+'·B &nbsp;·&nbsp; '+(aliasing
+        ? '<span class="bad">✗ 混叠 (Fs &lt; 2B)</span>'
+        : '<span class="ok">✓ 无混叠 (Fs ≥ 2B)</span>');
+    }
+    slider.addEventListener('input',draw); draw();
+  });
+
+  /* ---------------- DUALITY MINIS ---------------- */
+  safe(function(){
+    document.querySelectorAll('[data-mini]').forEach(function(s){
+      const kind=s.getAttribute('data-mini');
+      const yc=21,x0=8,x1=112;
+      add(s,'line',{x1:x0,y1:yc,x2:x1,y2:yc,stroke:C.line,'stroke-width':.8,opacity:.6});
+      const isTime=kind.endsWith('-t');
+      const col=isTime?C.time:C.freq;
+      if(kind==='ct-aper-t'){add(s,'path',{d:sinePath(x0,x1,yc,12,1.2,0.4,80),fill:'none',stroke:col,'stroke-width':1.8});}
+      else if(kind==='ct-aper-f'){add(s,'path',{d:gaussPath(x0,x1,yc,15,[(x0+x1)/2],14,80),fill:'none',stroke:col,'stroke-width':1.8});}
+      else if(kind==='ct-per-t'){add(s,'path',{d:sinePath(x0,x1,yc,12,2.4,0,90),fill:'none',stroke:col,'stroke-width':1.8});}
+      else if(kind==='ct-per-f'){ // discrete harmonic lines
+        const cs=[0.25,0.4,0.5,0.6,0.75];cs.forEach(function(t,i){const X=x0+(x1-x0)*t;const h=15-Math.abs(i-2)*3.5;add(s,'line',{x1:X,y1:yc,x2:X,y2:yc-h,stroke:col,'stroke-width':1.8});add(s,'circle',{cx:X,cy:yc-h,r:1.6,fill:col});});}
+      else if(kind==='dt-aper-t'){stems(s,x0,x1,yc,12,1.4,9,col,1.7);}
+      else if(kind==='dt-aper-f'){const span=x1-x0;add(s,'path',{d:gaussPath(x0,x1,yc,13,[(x0+x1)/2-span*0.4,(x0+x1)/2,(x0+x1)/2+span*0.4],9,90),fill:'none',stroke:col,'stroke-width':1.8});}
+      else if(kind==='dt-per-t'){stems(s,x0,x1,yc,12,2,9,col,1.7);}
+      else if(kind==='dt-per-f'){const cs=[0.18,0.34,0.5,0.66,0.82];cs.forEach(function(t,i){const X=x0+(x1-x0)*t;const h=14-Math.abs(i-2)*3;add(s,'line',{x1:X,y1:yc,x2:X,y2:yc-h,stroke:col,'stroke-width':1.8});add(s,'circle',{cx:X,cy:yc-h,r:1.6,fill:col});});}
+    });
+  });
+
+  /* ---------------- UNITS (interactive) ---------------- */
+  safe(function(){
+    const s=document.getElementById('units');if(!s)return;
+    const x0=120,x1=720, Fs=8, N=16;
+    const rows=[
+      {y:50, lab:'f  (Hz)',         color:C.freq, ticks:['0','4k','8k']},
+      {y:115,lab:'Ω  (rad/sample)', color:C.freq, ticks:['0','π','2π']},
+      {y:180,lab:'ν  (cycles/sample)',color:C.time,ticks:['0','0.5','1']},
+      {y:245,lab:'k  (DFT bin)',    color:C.op,   ticks:['0','8','16']}
+    ];
+    rows.forEach(function(r){
+      add(s,'line',{x1:x0,y1:r.y,x2:x1,y2:r.y,stroke:C.line,'stroke-width':1.5});
+      txt(s,x0-12,r.y+4,r.lab,{fill:C.dim,'font-family':'JetBrains Mono','font-size':12,'text-anchor':'end'});
+      [0,0.5,1].forEach(function(t,i){const X=x0+(x1-x0)*t;add(s,'line',{x1:X,y1:r.y-5,x2:X,y2:r.y+5,stroke:C.faint,'stroke-width':1});
+        txt(s,X,r.y+20,r.ticks[i],{fill:C.faint,'font-family':'JetBrains Mono','font-size':10.5,'text-anchor':'middle'});});
+    });
+    const g=add(s,'g');
+    const slider=document.getElementById('unitNu'), out=document.getElementById('unitOut');
+    function draw(){
+      while(g.firstChild)g.removeChild(g.firstChild);
+      const nu=parseFloat(slider.value); const X=x0+(x1-x0)*nu;
+      add(g,'line',{x1:X,y1:36,x2:X,y2:255,stroke:C.op,'stroke-width':1.4,'stroke-dasharray':'5 4',opacity:.9});
+      const vals=[ (nu*Fs).toFixed(2)+' kHz', (nu*2).toFixed(2)+'π', nu.toFixed(3), (nu*N).toFixed(1) ];
+      rows.forEach(function(r,i){add(g,'circle',{cx:X,cy:r.y,r:4.5,fill:r.color,stroke:'#0C1024','stroke-width':1.5});
+        const tx=X>x1-90?X-10:X+10;const anch=X>x1-90?'end':'start';
+        txt(g,tx,r.y-9,vals[i],{fill:r.color,'font-family':'JetBrains Mono','font-size':11,'text-anchor':anch});});
+      const kr=Math.round(nu*N);
+      out.innerHTML='ν='+nu.toFixed(3)+' &nbsp;→&nbsp; f='+(nu*Fs).toFixed(2)+'kHz &nbsp; Ω='+(nu*2).toFixed(2)+'π &nbsp; 最近 bin k='+kr;
+    }
+    slider.addEventListener('input',draw); draw();
+  });
+
+  /* ---------------- BASIS (change of basis) ---------------- */
+  safe(function(){
+    const s=document.getElementById('basis');if(!s)return;
+    const ox=250, oy=125, L=95;
+    // grid faint
+    for(let i=-2;i<=2;i++){add(s,'line',{x1:ox+i*40,y1:oy-110,x2:ox+i*40,y2:oy+110,stroke:C.line,'stroke-width':.5,opacity:.25});
+      add(s,'line',{x1:ox-110,y1:oy+i*40,x2:ox+110,y2:oy+i*40,stroke:C.line,'stroke-width':.5,opacity:.25});}
+    const defs=add(s,'defs');
+    function marker(id,col){const mk=add(defs,'marker',{id:id,markerWidth:9,markerHeight:9,refX:6,refY:3,orient:'auto'});add(mk,'path',{d:'M0 0 L6 3 L0 6 Z',fill:col});}
+    marker('mt',C.time);marker('mf',C.freq);marker('mw',C.ink);
+    // standard basis (axes)
+    add(s,'line',{x1:ox,y1:oy,x2:ox+L,y2:oy,stroke:C.time,'stroke-width':2,'marker-end':'url(#mt)'});
+    add(s,'line',{x1:ox,y1:oy,x2:ox,y2:oy-L,stroke:C.time,'stroke-width':2,'marker-end':'url(#mt)'});
+    txt(s,ox+L+8,oy+4,'e₀',{fill:C.time,'font-family':'JetBrains Mono','font-size':12});
+    txt(s,ox-4,oy-L-8,'e₁',{fill:C.time,'font-family':'JetBrains Mono','font-size':12,'text-anchor':'end'});
+    // Fourier basis (rotated ~33deg)
+    const a=Math.PI/5.4, ca=Math.cos(a), sa=Math.sin(a);
+    add(s,'line',{x1:ox,y1:oy,x2:ox+L*ca,y2:oy-L*sa,stroke:C.freq,'stroke-width':2,'marker-end':'url(#mf)'});
+    add(s,'line',{x1:ox,y1:oy,x2:ox-L*sa,y2:oy-L*ca,stroke:C.freq,'stroke-width':2,'marker-end':'url(#mf)'});
+    txt(s,ox+L*ca+8,oy-L*sa,'φ₀',{fill:C.freq,'font-family':'JetBrains Mono','font-size':12});
+    txt(s,ox-L*sa-8,oy-L*ca,'φ₁',{fill:C.freq,'font-family':'JetBrains Mono','font-size':12,'text-anchor':'end'});
+    // the vector (point)
+    const vx=ox+72, vy=oy-58;
+    add(s,'line',{x1:ox,y1:oy,x2:vx,y2:vy,stroke:C.ink,'stroke-width':2.4,'marker-end':'url(#mw)'});
+    add(s,'circle',{cx:vx,cy:vy,r:4.5,fill:C.ink});
+    txt(s,vx+8,vy-6,'x',{fill:C.ink,'font-family':'Space Grotesk','font-size':15,'font-weight':600});
+    // projections to standard (dashed amber)
+    add(s,'line',{x1:vx,y1:vy,x2:vx,y2:oy,stroke:C.time,'stroke-width':1,'stroke-dasharray':'3 3',opacity:.6});
+    add(s,'line',{x1:vx,y1:vy,x2:ox,y2:vy,stroke:C.time,'stroke-width':1,'stroke-dasharray':'3 3',opacity:.6});
+    // labels
+    txt(s,560,70,'同一个向量 x',{fill:C.ink,'font-family':'Space Grotesk','font-size':16,'font-weight':600});
+    txt(s,560,98,'标准基坐标:',{fill:C.time,'font-family':'JetBrains Mono','font-size':12.5});
+    txt(s,560,116,'(x[0], x[1], …)',{fill:C.dim,'font-family':'JetBrains Mono','font-size':12.5});
+    txt(s,560,150,'Fourier 基坐标:',{fill:C.freq,'font-family':'JetBrains Mono','font-size':12.5});
+    txt(s,560,168,'(X[0], X[1], …)',{fill:C.dim,'font-family':'JetBrains Mono','font-size':12.5});
+    txt(s,560,200,'DFT = 旋转坐标轴',{fill:C.op,'font-family':'JetBrains Mono','font-size':12.5});
+  });
+
+  /* ---------------- TEMPLATE MATCHING (interactive) ---------------- */
+  safe(function(){
+    const s=document.getElementById('match');if(!s)return;
+    defsGlow(s,'mF',C.freq,2);
+    const Nsig=64, x0=70, x1=750;
+    const x=[];for(let n=0;n<Nsig;n++)x.push(1.0*Math.sin(2*Math.PI*0.08*n)+0.6*Math.sin(2*Math.PI*0.22*n+0.6));
+    function mag(f){let re=0,im=0;for(let n=0;n<Nsig;n++){re+=x[n]*Math.cos(-2*Math.PI*f*n);im+=x[n]*Math.sin(-2*Math.PI*f*n);}return Math.hypot(re,im)/Nsig;}
+    // precompute curve
+    const NF=240, curve=[];let mx=0;for(let i=0;i<=NF;i++){const f=0.5*i/NF;const v=mag(f);curve.push(v);if(v>mx)mx=v;}
+    // ----- top: signal panel
+    const tcy=90, amp=44;
+    txt(s,x0,38,'x[n] = sin(2π·0.08·n) + 0.6·sin(2π·0.22·n)',{fill:C.dim,'font-family':'JetBrains Mono','font-size':11.5});
+    add(s,'line',{x1:x0,y1:tcy,x2:x1,y2:tcy,stroke:C.line,'stroke-width':1,opacity:.6});
+    // signal as continuous-ish amber path (interpolate sample points)
+    let d='';for(let n=0;n<Nsig;n++){const X=x0+(x1-x0)*n/(Nsig-1);const Y=tcy-amp*0.5*x[n];d+=(n?'L':'M')+X.toFixed(2)+' '+Y.toFixed(2)+' ';}
+    add(s,'path',{d:d.trim(),fill:'none',stroke:C.time,'stroke-width':2,opacity:.95,'stroke-linecap':'round'});
+    const probe=add(s,'path',{fill:'none',stroke:C.freq,'stroke-width':1.6,opacity:.65,'stroke-dasharray':'4 3'});
+    // ----- bottom: response curve
+    const by0=190, by1=320, bx0=70, bx1=750;
+    txt(s,bx0,176,'匹配强度  |⟨ x , φ_f ⟩|   （这条曲线 = 频谱）',{fill:C.dim,'font-family':'JetBrains Mono','font-size':11.5});
+    add(s,'line',{x1:bx0,y1:by1,x2:bx1,y2:by1,stroke:C.line,'stroke-width':1});
+    // x ticks
+    [0,0.1,0.2,0.3,0.4,0.5].forEach(function(f){const X=bx0+(bx1-bx0)*(f/0.5);add(s,'line',{x1:X,y1:by1,x2:X,y2:by1+5,stroke:C.faint,'stroke-width':1});
+      txt(s,X,by1+18,f.toFixed(1),{fill:C.faint,'font-family':'JetBrains Mono','font-size':10,'text-anchor':'middle'});});
+    txt(s,bx1,by1+33,'cyc/sample',{fill:C.faint,'font-family':'JetBrains Mono','font-size':10,'text-anchor':'end'});
+    // curve path + fill
+    let cp='';for(let i=0;i<=NF;i++){const X=bx0+(bx1-bx0)*(i/NF);const Y=by1-(by1-by0)*(curve[i]/mx);cp+=(i?'L':'M')+X.toFixed(2)+' '+Y.toFixed(2)+' ';}
+    add(s,'path',{d:cp.trim()+' L'+bx1+' '+by1+' L'+bx0+' '+by1+' Z',fill:'rgba(63,217,198,.10)',stroke:'none'});
+    add(s,'path',{d:cp.trim(),fill:'none',stroke:C.freq,'stroke-width':2,filter:'url(#mF)'});
+    const marker=add(s,'g');
+    const slider=document.getElementById('matchF'), out=document.getElementById('matchOut');
+    function draw(){
+      const f=parseFloat(slider.value);
+      // probe overlay on signal
+      let pd='';for(let n=0;n<Nsig;n++){const X=x0+(x1-x0)*n/(Nsig-1);const Y=tcy-amp*0.42*Math.sin(2*Math.PI*f*n);pd+=(n?'L':'M')+X.toFixed(2)+' '+Y.toFixed(2)+' ';}
+      probe.setAttribute('d',pd.trim());
+      // marker on curve
+      while(marker.firstChild)marker.removeChild(marker.firstChild);
+      const v=mag(f); const X=bx0+(bx1-bx0)*(f/0.5); const Y=by1-(by1-by0)*(v/mx);
+      add(marker,'line',{x1:X,y1:by1,x2:X,y2:Y,stroke:C.op,'stroke-width':1.2,'stroke-dasharray':'3 3',opacity:.8});
+      add(marker,'circle',{cx:X,cy:Y,r:5,fill:C.op,stroke:'#0C1024','stroke-width':1.5});
+      // bar gauge
+      const barX=620;
+      add(marker,'rect',{x:barX,y:186,width:130,height:8,rx:4,fill:C.line});
+      add(marker,'rect',{x:barX,y:186,width:Math.max(2,130*(v/mx)),height:8,rx:4,fill:C.freq});
+      out.innerHTML='f = '+f.toFixed(3)+' cyc/sample &nbsp;·&nbsp; match = '+v.toFixed(3);
+    }
+    slider.addEventListener('input',draw); draw();
+  });
+
+  /* ---------------- LTI eigenbasis ---------------- */
+  safe(function(){
+    const s=document.getElementById('lti');if(!s)return;
+    defsGlow(s,'lT',C.time,2.2);
+    const defs=add(s,'defs');const mk=add(defs,'marker',{id:'la',markerWidth:9,markerHeight:9,refX:6,refY:3,orient:'auto'});add(mk,'path',{d:'M0 0 L6 3 L0 6 Z',fill:C.op});
+    // (a) eigenfunction flow
+    txt(s,40,34,'(a) 复指数过 LTI 系统 — 频率不变，只被缩放/相移',{fill:C.dim,'font-family':'JetBrains Mono','font-size':12});
+    const ay=92;
+    add(s,'line',{x1:40,y1:ay,x2:250,y2:ay,stroke:C.line,'stroke-width':1,opacity:.5});
+    add(s,'path',{d:sinePath(40,250,ay,30,2.2,0,160),fill:'none',stroke:C.time,'stroke-width':2.4,filter:'url(#lT)','stroke-linecap':'round'});
+    txt(s,40,64,'eʲᏰᵗ',{fill:C.time,'font-family':'JetBrains Mono','font-size':13});
+    // box
+    add(s,'rect',{x:300,y:62,width:170,height:60,rx:11,fill:'rgba(196,155,255,.08)',stroke:C.op,'stroke-width':1.5});
+    txt(s,385,88,'LTI 系统',{fill:C.op,'font-family':'Space Grotesk','font-size':15,'font-weight':600,'text-anchor':'middle'});
+    txt(s,385,108,'h(t) / H(ω)',{fill:C.dim,'font-family':'JetBrains Mono','font-size':11.5,'text-anchor':'middle'});
+    add(s,'path',{d:'M255 92 L296 92',stroke:C.op,'stroke-width':1.6,'marker-end':'url(#la)'});
+    add(s,'path',{d:'M474 92 L515 92',stroke:C.op,'stroke-width':1.6,'marker-end':'url(#la)'});
+    // output: smaller amp + phase shift
+    add(s,'line',{x1:520,y1:ay,x2:780,y2:ay,stroke:C.line,'stroke-width':1,opacity:.5});
+    add(s,'path',{d:sinePath(520,780,ay,19,2.2,0.9,160),fill:'none',stroke:C.time,'stroke-width':2.4,filter:'url(#lT)','stroke-linecap':'round',opacity:.85});
+    txt(s,520,64,'H(ω)·eʲᏰᵗ',{fill:C.time,'font-family':'JetBrains Mono','font-size':13});
+    txt(s,650,138,'同一频率 · eigenfunction',{fill:C.faint,'font-family':'JetBrains Mono','font-size':10,'text-anchor':'middle'});
+
+    // divider
+    add(s,'line',{x1:40,y1:172,x2:780,y2:172,stroke:C.line,'stroke-width':1,opacity:.4,'stroke-dasharray':'4 5'});
+
+    // (b) convolution -> multiplication
+    txt(s,40,204,'(b) 卷积  ⟺  逐点相乘 — Fourier 把卷积对角化',{fill:C.dim,'font-family':'JetBrains Mono','font-size':12});
+    // time side (tangled)
+    add(s,'rect',{x:40,y:222,width:330,height:64,rx:11,fill:'rgba(255,194,75,.05)',stroke:C.time,'stroke-width':1,opacity:.8});
+    txt(s,205,246,'时域:  y = h ✶ x',{fill:C.time,'font-family':'JetBrains Mono','font-size':13,'text-anchor':'middle'});
+    // two overlapping small waves
+    add(s,'path',{d:sinePath(90,320,272,8,1.5,0,80),fill:'none',stroke:C.time,'stroke-width':1.4,opacity:.7});
+    add(s,'path',{d:sinePath(90,320,272,6,3.2,1,80),fill:'none',stroke:C.time,'stroke-width':1.4,opacity:.45});
+    txt(s,205,290,'滑动重叠积分 · 纠缠',{fill:C.faint,'font-family':'JetBrains Mono','font-size':9.5,'text-anchor':'middle'});
+    // arrow
+    add(s,'path',{d:'M380 254 L432 254',stroke:C.op,'stroke-width':1.6,'marker-end':'url(#la)'});
+    txt(s,406,246,'\u2131',{fill:C.op,'font-size':16,'text-anchor':'middle','font-family':'Space Grotesk'});
+    // freq side (pointwise)
+    add(s,'rect',{x:445,y:222,width:335,height:64,rx:11,fill:'rgba(63,217,198,.06)',stroke:C.freq,'stroke-width':1.2});
+    txt(s,612,246,'频域:  Y = H · X',{fill:C.freq,'font-family':'JetBrains Mono','font-size':13,'text-anchor':'middle'});
+    // pointwise dots
+    const pts=[480,520,560,600,640,680,720,752];const hs=[10,18,8,22,12,16,9,14];
+    pts.forEach(function(px,i){add(s,'line',{x1:px,y1:284,x2:px,y2:284-hs[i],stroke:C.freq,'stroke-width':2.4,'stroke-linecap':'round'});});
+    txt(s,612,290,'每个频率独立 · 对角化',{fill:C.faint,'font-family':'JetBrains Mono','font-size':9.5,'text-anchor':'middle'});
+  });
+
+})();
+</script>
+</body>
+</html>

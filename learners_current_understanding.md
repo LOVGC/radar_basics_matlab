@@ -1,0 +1,189 @@
+# Learner Current Understanding
+
+## Current Topic and Stage
+
+- Current curriculum topic: Core tensor model: fast time, slow time, array element
+- Current learning stage: First range-Doppler-angle cube implementation has run successfully
+- Last updated: 2026-06-10
+
+## Concepts the Learner Seems to Understand
+
+- Correctly maps target range/delay to `fast time`, target velocity/Doppler to `slow time`, and target angle/spatial phase to `array element`.
+- Understands that fixing `fast time` and `array element` leaves a slow-time vector whose phase varies with target radial velocity.
+- Understands that array geometry creates element-to-element delay differences, visible as spatial phase differences across array elements.
+- Understands that the single-target continuous-time received signal, vector form, and data-cube form are different representations of the same underlying array echo, rather than separate physical models.
+- Understands range, Doppler, and angle processing as matched-filter/projection operations against delay, slow-time sinusoid, and spatial steering templates.
+- Correctly predicts that increasing LFM bandwidth narrows the matched-filter range peak and that increasing pulse count improves Doppler/velocity bin spacing.
+- Correctly predicts that two targets separated by less than the approximate range resolution tend to merge into one range peak, while increasing bandwidth makes them easier to separate.
+- Understands that larger target separation makes two range responses easier to distinguish, especially when separation exceeds the nominal range-resolution scale.
+- Understands that targets separated only slightly beyond nominal range resolution can still have strongly overlapping matched-filter mainlobes, producing partial rather than clean separation.
+- Correctly predicts that two targets separated by 2 m/s will strongly overlap in Doppler for `Np = 64`, and will still overlap substantially for `Np = 128`.
+- Correctly computes that about `Np = 300` pulses are needed to make velocity bin spacing roughly `0.5 m/s` at `fc = 10 GHz` and `PRF = 10 kHz`.
+- Correctly predicts that increasing PRF decreases maximum unambiguous range and increases maximum unambiguous velocity.
+- Correctly recognizes that a target velocity beyond the unambiguous velocity interval will Doppler-alias/wrap rather than appear at its true velocity.
+- Correctly computes a simple aliased velocity by subtracting the velocity period, e.g. `160 m/s -> 10 m/s` when the velocity period is about `150 m/s`.
+- Correctly identifies that a broadside ULA target has zero element-to-element phase shift and an all-ones steering vector under the normalized convention.
+- Correctly simplifies a nonzero ULA steering-vector phase progression: for `Delta phi = -pi/2`, the first four entries are `[1, -j, -1, j]`.
+- Correctly predicts that increasing ULA element count from `M = 8` to `M = 16` narrows the mainlobe and makes the sidelobe/null structure denser.
+- Has seen a MATLAB ULA beamforming scan where spatial matched filtering estimates a `20 deg` target at about `20.05 deg`.
+- Has seen a MATLAB grating-lobe comparison where `d = lambda/2` suppresses the `-30 deg` alias for a `30 deg` target, while `d = lambda` produces an equal-height grating lobe at `-30 deg`.
+- Has seen a full `x[fast time, slow time, array element]` MATLAB demo estimate range, velocity, and angle from a single target using matched filtering, Doppler FFT, and angle scan.
+- Correctly traces `demo_06` from raw data-cube synthesis through matched filtering, Doppler FFT, RD peak picking, and angle scan at the detected RD cell.
+- Correctly computes ULA spatial frequency `u = d*sin(theta)/lambda`; for `d = lambda/2` and `theta = 30 deg`, `u = 0.25`.
+- Has seen conventional ULA angle scan and spatial FFT estimate the same `30 deg` target by finding the same spatial frequency.
+- Understands that using `Nfft = 4096` for a 16-element spatial FFT is zero-padding/interpolation of the spatial spectrum, not an increase in true angle resolution.
+- Understands the unified Fourier/aperture view: range, Doppler, and angle processing map data to frequency-like coordinates whose peaks correspond to physical parameters.
+- Understands that physical resolution is tied to measurement support/aperture: waveform bandwidth for range, CPI duration for Doppler, and array aperture/element count for angle.
+- Has seen an angle-resolution demo where increasing `Nfft` from 16 to 4096 smooths/interpolates the spectrum, while increasing `M` from 16 to 32 actually narrows the mainlobe and improves physical angular separation.
+- Correctly infers that, in ideal MUSIC, two uncorrelated targets correspond to a two-dimensional signal subspace.
+- Correctly computes MUSIC subspace dimensions from `M` array elements and `K` sources, e.g. `M = 16`, `K = 3` gives signal subspace dimension 3 and noise subspace dimension 13.
+- Has seen a minimal MUSIC demo where covariance eigendecomposition separates two signal eigenvectors from a 14-dimensional noise subspace for `M = 16`, `K = 2`.
+- Has seen MUSIC resolve two close angular targets at `20 deg` and `28 deg` more sharply than conventional beamforming under ideal assumptions.
+- Correctly understands the core MVDR intuition: conventional beamforming does not actively null a strong off-angle jammer, while MVDR uses covariance information to place a null in the interference direction under a distortionless target constraint.
+- Has seen a minimal MVDR jammer-nulling demo where both conventional and MVDR keep `20 deg` look gain at `0 dB`, but MVDR suppresses a `-30 deg` jammer much more deeply.
+- Correctly understands that fewer snapshots / less reliable covariance estimates call for larger diagonal loading to make MVDR less aggressive and more stable.
+- Has seen an MVDR diagonal-loading sweep where small loading forms a deep jammer null and very large loading makes the null shallower and more conventional-like.
+- Understands that MUSIC and MVDR depend on training snapshots/covariance quality and are less plug-and-play than conventional beamforming because they rely on modeling assumptions and tuning choices.
+- Understands that CFAR is not specific to range-Doppler maps; it can operate on any detection statistic map/cube such as range profiles, RD maps, RA maps, DA maps, or RDA tensors.
+
+## Understanding Gaps / Misconceptions
+
+- Needs more practice connecting these phase progressions to actual plots: matched-filter output, Doppler FFT bins, and angle spectrum peaks.
+- Needs to keep the representation levels distinct: `x_{m,n,p}(t)` is a continuous-time per-element/per-pulse signal, while vector and data-cube forms arise after stacking across array elements and/or sampling/matched filtering into range bins.
+- Needs to be careful about conjugation/sign conventions in matched filtering, Doppler FFT, and beamforming templates.
+- Should distinguish the mechanisms behind range and Doppler resolution: bandwidth controls delay/range resolution, while CPI duration controls Doppler/velocity resolution.
+- Should remember that `Delta R = c/(2B)` is an approximate resolution scale, not a hard threshold; visible separation also depends on waveform shape, sampling, windowing, sidelobes, SNR, and relative target amplitudes.
+- May be slightly too conservative about separations just above nominal range resolution; a separation larger than `Delta R` can produce visible separation even when the peaks are not cleanly split.
+- Needs to distinguish Doppler resolution from unambiguous velocity: increasing `Np` at fixed PRF improves resolution, while increasing PRF expands the unambiguous Doppler interval.
+- Needs practice connecting element count and aperture to beamwidth / angle resolution.
+- Needs to connect element spacing to spatial aliasing / grating lobes after seeing the basic angle scan.
+- Needs to distinguish true target peaks from sidelobes, noise peaks, and grating lobes in an angle spectrum.
+- Should note that increasing element count with uniform weights mainly narrows beamwidth; sidelobe relative levels depend strongly on aperture weighting/windowing.
+- Needs to keep angle-domain conventions explicit: `theta = 150 deg` has the same sine as `30 deg`, but with the current broadside scan interval `[-90, 90]`, the `d = lambda` grating lobe for a `30 deg` target appears near `-30 deg`.
+- Should next connect grating lobes to the spatial sampling condition `d <= lambda/2` and compare them against ordinary sidelobes.
+- Should next practice reading the code path from raw cube to detected target: `rx -> matchedOut -> rangeDopplerAngle -> arraySnapshot -> beamResponse`.
+- Should distinguish the economical detected-cell angle scan used in `demo_06` from a full range-Doppler-angle cube, which would scan/beamform every RD cell.
+- Should remember the sign convention in `demo_07`: because steering uses `exp(-j2*pi*m*u)`, the spatial FFT is applied to `conj(arraySnapshot)` so the plotted peak appears at positive `u`.
+- Should distinguish FFT display grid density from physical resolution: increasing `Nfft` interpolates the spectrum, while increasing `M`/aperture narrows the mainlobe.
+- Should phrase the Fourier duality carefully: FFT is the computational projection/display method, while bandwidth, CPI length, and aperture determine the physical response width.
+- Should next connect conventional FFT/beamforming limits to why MUSIC/MVDR can improve estimation or interference rejection under stronger assumptions.
+- Needs to distinguish the number of snapshots from subspace dimension: snapshots improve covariance estimation quality, while ideal noise-subspace dimension is `M-K` for `M` array elements and `K` sources.
+- Ready to see MUSIC implemented as covariance estimation, eigendecomposition, noise-subspace extraction, and pseudospectrum scanning.
+- Should remember MUSIC requires stronger assumptions than conventional beamforming: known/estimated source count, enough snapshots, uncorrelated or decorrelated sources, and a good array calibration/model.
+- Ready to see MVDR implemented as `w = R^{-1}a/(a^H R^{-1}a)` and compare its pattern against conventional steering weights in a jammer scenario.
+- Should distinguish MVDR look-direction weights from the Capon/MVDR spectrum: the former forms a beam with a distortionless constraint, while the latter scans covariance power and can peak at the jammer direction.
+- Should be able to explain the visual diagonal-loading tradeoff: small loading trusts covariance strongly, while large loading makes MVDR more conservative and conventional-like.
+- Needs to connect diagonal-loading choice to practical covariance quality, steering mismatch, and robustness requirements.
+- Should use the term "diagonal loading" rather than "diagonal overloading."
+- Needs to learn how CFAR training cells, guard cells, and CUT neighborhoods should be designed differently for 1D, 2D, and 3D detection products.
+
+## Evidence From Learner Responses
+
+- When asked which tensor dimension changes for target distance, speed, and angle, the learner answered: "1. fast time 2. slow time 3. array element."
+- The learner explained that fixing fast time and array element gives a slow-time vector whose phase changes with radial velocity, and that array geometry causes element-dependent delays reflected in phase.
+- The learner summarized that the "single-target continuous-time received signal" is the basic model and that the data cube and vector form describe the same thing: the whole array sensing a single-target signal.
+- The learner described Doppler processing, angle estimation, and range estimation as template matching operations over slow time, array elements, and fast time, respectively.
+- The learner predicted that changing `B` from 10 MHz to 20 MHz makes the range peak narrower, changing `Np` from 64 to 128 makes velocity estimation finer, and the target peak center should remain roughly unchanged.
+- The learner predicted that targets at 4000 m and 4008 m look like one peak for `B = 10 MHz`, and become easier to separate for `B = 20 MHz` because the nominal resolution is about 7.5 m.
+- For targets at 4000 m and 4020 m, the learner predicted that `B = 20 MHz` would likely resolve them, but that `B = 10 MHz` might still not resolve them; this was partly conservative because 20 m exceeds the 10 MHz nominal resolution of about 15 m.
+- The learner explained that at `B = 10 MHz`, a 20 m separation still looks imperfect because the 15 m nominal resolution means the targets are still close and their responses overlap.
+- The learner predicted that targets at 30 m/s and 32 m/s will overlap badly with `Np = 64`, and still overlap substantially with `Np = 128`.
+- The learner answered `300` when asked how many pulses are needed for velocity bin spacing below about `0.5 m/s` at `fc = 10 GHz` and `PRF = 10 kHz`.
+- The learner answered that doubling PRF makes maximum unambiguous range smaller and maximum unambiguous velocity larger.
+- The learner answered that a `90 m/s` target at `PRF = 10 kHz`, `fc = 10 GHz` would wrap to another velocity, but guessed it might be around `20 m/s`; the correct shifted-FFT alias is near `-60 m/s`.
+- The learner correctly answered that a `160 m/s` target aliases to about `10 m/s` when the velocity period is about `150 m/s`.
+- For a ULA broadside target with `theta = 0 deg`, the learner answered that element-to-element phase difference is zero and the steering vector is constant/all ones.
+- For `d = lambda/2` and `theta = 30 deg`, the learner answered `pi*d/lambda`; this partly applied `sin(30)=0.5` but missed the negative sign and did not finish substituting `d = lambda/2`.
+- After correction that `Delta phi = -pi/2`, the learner correctly simplified the first four steering-vector entries as `[1, -j, -1, j]`.
+- A new MATLAB demo estimated a `20 deg` ULA target at `20.05 deg` using the spatial matched-filter response `|a(theta)^H x|`.
+- When asked how to interpret a high angle-spectrum peak at `30 deg` and a smaller peak at `-20 deg`, the learner suggested there may be two real targets; this is possible but needs caution because the smaller peak may also be a sidelobe or artifact.
+- The learner predicted that increasing ULA element count from `M = 8` to `M = 16` makes the angle-spectrum mainlobe narrower and the sidelobe pattern denser.
+- For `d = lambda` and a true `30 deg` target, the learner suggested `150 deg` as another equivalent angle; this is mathematically related through `sin(150 deg) = sin(30 deg)`, while the current `[-90, 90]` scan convention highlights the grating-lobe alias near `-30 deg`.
+- A new MATLAB demo showed that for a `30 deg` target with `M = 16`, response at `-30 deg` is about `-308 dB` for `d = lambda/2`, but `0 dB` for `d = lambda`.
+- A new MATLAB RDA demo used `rx[fast time, slow time, array element]` and estimated a `4 km`, `30 m/s`, `20 deg` target as `4002.23 m`, `30.45 m/s`, and `20.00 deg`.
+- The learner summarized `demo_06` as synthesizing `rx = targetEcho + noise`, applying matched filtering along fast time for each slow-time/channel slice, applying Doppler FFT along slow time for each range/channel slice, then scanning angles only at the detected RD cell rather than all RD cells.
+- The learner answered `0.25` for the spatial frequency `u = d*sin(theta)/lambda` with `d = lambda/2` and `theta = 30 deg`.
+- A new MATLAB demo estimated a `30 deg` ULA target as `30.05 deg` using conventional angle scan and `30.06 deg` using spatial FFT.
+- The learner noticed that a 16-element array used `Nfft = 4096` in `demo_07` and correctly inferred that this is an interpolation/zero-padding trick rather than a 4096-point independent measurement.
+- The learner summarized range FFT, Doppler FFT, and angle FFT as converting data to frequency-like domains where response peaks correspond to physical target parameters, and connected resolution to inverse support relationships.
+- A new MATLAB demo showed that `M = 16` gives about `7.84 deg` angular resolution near `24 deg` whether `Nfft = 16` or `4096`, while `M = 32` improves the estimate to about `3.92 deg`.
+- The learner guessed that two targets give signal subspace dimension 2, and that noise subspace dimension depends on snapshot count; the first part is correct, while the second should be corrected to `M-K` dimension with snapshot count affecting estimation quality.
+- The learner correctly answered that for `M = 16` and `K = 3`, the ideal signal/noise subspace dimensions are 3 and 13.
+- A new MATLAB MUSIC demo used `M = 16`, `K = 2`, and 200 snapshots; it produced signal/noise subspace dimensions 2 and 14, eigenvalues about `17.80`, `15.08`, and `0.03`, and sharp MUSIC peaks at the two true angles.
+- The learner correctly answered that a conventional beamformer pointed at `20 deg` will not actively null a strong `-30 deg` jammer, while MVDR will tend to place a null in the jammer direction if the covariance captures it.
+- A new MATLAB MVDR demo used `M = 16`, look direction `20 deg`, jammer direction `-30 deg`, and 500 training snapshots; conventional jammer gain was about `-26.46 dB`, while MVDR jammer gain was about `-80.34 dB`.
+- The learner said they do not yet understand why diagonal loading makes MVDR more stable but can make jammer nulls shallower.
+- After explanation, the learner correctly answered that with few snapshots and unreliable `R_hat`, larger diagonal loading should be used.
+- A new MATLAB loading sweep showed conventional jammer gain about `-26.46 dB`, MVDR loading `1e-6` about `-65.24 dB`, loading `1e-2` about `-69.15 dB`, and large loading `1e1` about `-34.66 dB`.
+- The learner summarized that MUSIC and MVDR require training/covariance data and can be unstable because MUSIC needs assumptions such as source count `K`, while MVDR can suppress the wrong directions and requires diagonal loading tuning.
+- In a side conversation, the learner asked whether CFAR must be applied on an RD map or can also apply to RA maps and RDA tensors, then accepted that CFAR can operate on any detection map/cube with a CUT and surrounding training cells.
+
+## Follow-up Questions to Ask
+
+- After the first MATLAB demo, ask the learner to identify which code lines implement delay, Doppler phase, and matched filtering.
+- Ask the learner to explain what indices are being held fixed or stacked when moving from `x_{m,n,p}(t)` to `\mathbf x_{p,k}` and then to `x[m,n,p,k]`.
+- Ask the learner to write the Doppler matched-filter sum for a hypothesized Doppler frequency and explain why the matching bin produces coherent gain.
+- Ask the learner to distinguish "nominally resolvable" from "visually clean two-peak separation" in a matched-filter profile.
+- Ask the learner what evidence would distinguish a second target from a sidelobe in an angle spectrum.
+- Ask the learner why grating lobes are more dangerous than ordinary sidelobes in detection.
+- Ask the learner to identify which dimensions are processed by matched filtering, Doppler FFT, noncoherent RD peak picking, and angle scan in `demo_06`.
+- Ask the learner what would change computationally and dimensionally if angle scan were applied to every range-Doppler cell.
+- Ask the learner how to convert a spatial FFT bin `u` back to angle using `theta = asin(u*lambda/d)`.
+- Ask the learner to explain one advantage and one limitation of spatial FFT versus arbitrary angle scan.
+- Ask the learner what would happen to mainlobe width if `Nfft` stayed 4096 but `M` increased from 16 to 32.
+- Ask the learner to compare which change improves display smoothness versus physical resolution: increasing `Nfft` or increasing `M`.
+- Ask the learner to explain why zero-padding can help peak interpolation but cannot separate two targets whose mainlobes fundamentally overlap.
+- Ask the learner to identify which eigenvectors form the noise subspace after sorting covariance eigenvalues.
+- Ask the learner why MUSIC fails or degrades when `K` is chosen incorrectly or snapshots are too few.
+- Ask the learner to identify the MVDR distortionless constraint and what would go wrong if the steering vector is mismatched.
+- Ask the learner to explain why large diagonal loading makes MVDR behave more like conventional beamforming.
+- Ask the learner to compare when conventional beamforming might be preferred over MUSIC/MVDR despite lower resolution or less adaptivity.
+- Ask the learner to identify what the CUT, guard cells, and training cells would mean in a 1D range profile versus a 2D RD map.
+
+## Next Recommended Learning Step
+
+- Begin CFAR with a 1D range-profile example, then generalize to RD, RA, and RDA detection products.
+
+## Update History
+
+| Date | Topic | Evidence | Update |
+| --- | --- | --- | --- |
+| 2026-06-09 | Core tensor model | First learning session started. | Created learner model file with initial topic and no assessed understanding yet. |
+| 2026-06-09 | Core tensor model | Correctly identified fast time, slow time, and array element as the dimensions for range, velocity, and angle. | Recorded initial correct mapping; next check should assess physical reasoning. |
+| 2026-06-09 | Core tensor model | Explained slow-time phase variation with radial velocity and element-to-element phase from array geometry. | Marked the core tensor model as initially stable and moved next step to MATLAB implementation. |
+| 2026-06-09 | Signal model representations | Summarized continuous-time, vector, and data-cube forms as different descriptions of the whole array sensing the same single-target signal. | Recorded understanding of equivalent representations; added a nuance to distinguish continuous-time per-element signals from stacked/sampled vector and tensor forms. |
+| 2026-06-09 | Matched-filter view of radar processing | Described Doppler, angle, and range processing as matching templates along slow time, array element, and fast time. | Recorded a strong unifying abstraction; added a caution about conjugation/sign conventions. |
+| 2026-06-09 | Resolution parameters | Correctly predicted the qualitative effects of increasing bandwidth and pulse count on range and velocity resolution. | Recorded correct prediction and added nuance that range resolution comes from bandwidth while Doppler resolution comes from CPI duration. |
+| 2026-06-09 | Range resolution | Correctly predicted that 8 m target separation is unresolved or barely resolved at 10 MHz bandwidth and easier to separate at 20 MHz. | Recorded understanding of the range-resolution formula and added nuance that resolution is an approximate scale rather than a hard boundary. |
+| 2026-06-09 | Range resolution | Predicted that 20 m separation would likely resolve at 20 MHz but might still not resolve at 10 MHz. | Recorded partly correct prediction; clarified that 20 m exceeds the 10 MHz nominal resolution, so partial visible separation is expected even if the two peaks are not clean. |
+| 2026-06-09 | Range resolution | Explained that 20 m separation at 10 MHz is still close to the 15 m resolution scale, so responses overlap and do not form clean peaks. | Recorded understanding of nominal resolution versus clean visual separation. |
+| 2026-06-09 | Doppler resolution | Predicted that 30 m/s and 32 m/s targets overlap strongly for `Np = 64`, and still overlap a lot for `Np = 128`. | Recorded correct qualitative transfer of resolution logic from range to Doppler; next step is MATLAB slow-time FFT verification. |
+| 2026-06-09 | Doppler resolution | Computed `Np` as about 300 for velocity bin spacing below `0.5 m/s` at 10 GHz carrier and 10 kHz PRF. | Recorded correct formula-based parameter reasoning; next step is PRF ambiguity tradeoffs. |
+| 2026-06-09 | PRF ambiguity tradeoff | Correctly predicted that doubling PRF reduces unambiguous range and increases unambiguous velocity. | Recorded understanding of the basic PRF tradeoff; next step is Doppler aliasing. |
+| 2026-06-09 | Doppler aliasing | Predicted that a 90 m/s target exceeds the unambiguous velocity and will wrap, but guessed the alias near 20 m/s. | Recorded correct aliasing intuition and corrected the shifted-FFT alias to about -60 m/s. |
+| 2026-06-09 | Doppler aliasing | Correctly computed that 160 m/s aliases to about 10 m/s for a 150 m/s velocity period. | Recorded successful alias calculation; ready to connect temporal aliasing to spatial aliasing in arrays. |
+| 2026-06-09 | ULA steering vector | Correctly answered that broadside has zero spatial phase increment and an all-ones steering vector. | Recorded initial understanding of the ULA steering vector at broadside; next step is nonzero angle phase progression. |
+| 2026-06-09 | ULA steering vector | For `d = lambda/2`, `theta = 30 deg`, answered `pi*d/lambda` for the phase increment. | Recorded partial substitution and corrected the current-convention phase increment to `-pi/2`; follow-up should practice steering-vector entries. |
+| 2026-06-09 | ULA steering vector | Correctly simplified `Delta phi = -pi/2` steering-vector entries as `[1, -j, -1, j]`. | Recorded corrected nonzero-angle steering-vector understanding. |
+| 2026-06-09 | ULA beamforming | Ran a ULA spatial matched-filter angle scan with a 20 deg target and estimated 20.05 deg. | Connected steering-vector templates to conventional beamforming output; next step is aperture and grating-lobe experiments. |
+| 2026-06-09 | Angle spectrum interpretation | Interpreted a high peak at 30 deg and smaller peak at -20 deg as possibly two real targets. | Recorded plausible interpretation and added caution that smaller peaks can be sidelobes, noise peaks, or grating lobes. |
+| 2026-06-09 | ULA aperture | Predicted that increasing element count from 8 to 16 narrows the mainlobe and makes sidelobe structure denser. | Recorded correct aperture intuition; added nuance that sidelobe levels depend on weighting/windowing. |
+| 2026-06-09 | Spatial aliasing | Suggested 150 deg as an equivalent angle for a 30 deg target with `d = lambda`. | Recorded the sine-equivalence insight and clarified that under the current broadside scan convention, the visible grating-lobe alias is near -30 deg. |
+| 2026-06-09 | Spatial aliasing | Ran a MATLAB comparison showing `d = lambda/2` has no strong `-30 deg` alias, while `d = lambda` creates an equal-height `-30 deg` grating lobe for a `30 deg` target. | Recorded visual/numerical evidence that element spacing above `lambda/2` can create spatial aliasing. |
+| 2026-06-09 | Range-Doppler-angle cube | Built and ran `demo_06_single_target_rda_cube.m`, estimating range, velocity, and angle from `rx[fast time, slow time, array element]`. | Recorded successful integration of the three processing dimensions into one end-to-end skeleton. |
+| 2026-06-09 | Range-Doppler-angle cube | Correctly summarized `demo_06` processing order and noted that angle scan is applied only to the detected RD cell. | Recorded strong code-level understanding and added distinction between detected-cell scan and full RDA cube generation. |
+| 2026-06-09 | Spatial FFT | Correctly computed spatial frequency `u = 0.25` for `d = lambda/2`, `theta = 30 deg`. | Began connecting ULA steering vectors to FFT over the array-element dimension. |
+| 2026-06-09 | Spatial FFT | Built and ran `demo_07_spatial_fft_vs_angle_scan.m`, estimating a 30 deg target as 30.05 deg by angle scan and 30.06 deg by spatial FFT. | Recorded that conventional beamforming scan and spatial FFT are two views of the same ULA spatial-frequency matching operation. |
+| 2026-06-09 | Spatial FFT | Noticed that `Nfft = 4096` is much larger than the 16 array elements and asked whether it is interpolation. | Recorded correct understanding that zero-padding densifies the displayed FFT grid but does not improve physical angle resolution. |
+| 2026-06-09 | Fourier/aperture view | Summarized range, Doppler, and angle FFTs as frequency-domain mappings whose responses correspond to physical target parameters, with resolution tied to inverse support. | Recorded a strong unified abstraction and added nuance that FFT displays/projections reveal resolution set by physical support/aperture. |
+| 2026-06-09 | Angle resolution | Built and ran `demo_08_angle_resolution_m_vs_nfft.m`, comparing `M=16,Nfft=16`, `M=16,Nfft=4096`, and `M=32,Nfft=4096` for two close angular targets. | Recorded visual/numerical evidence that zero-padding interpolates the display grid, while increasing array aperture improves true angular resolution. |
+| 2026-06-09 | MUSIC motivation | Correctly inferred that two targets imply a two-dimensional signal subspace, but thought noise subspace dimension depends on snapshot count. | Recorded partial MUSIC subspace understanding and corrected that ideal noise subspace dimension is `M-K`, while snapshots affect covariance estimate quality. |
+| 2026-06-09 | MUSIC motivation | Correctly computed signal/noise subspace dimensions as 3 and 13 for `M = 16`, `K = 3`. | Recorded stable understanding of MUSIC subspace dimensions. |
+| 2026-06-09 | MUSIC demo | Built and ran `demo_09_music_two_targets.m`, comparing conventional beamforming and MUSIC for two close angular targets. | Recorded that MUSIC can produce sharper two-target DOA peaks by using the noise subspace, under stronger covariance/model assumptions. |
+| 2026-06-09 | MVDR motivation | Correctly stated that conventional beamforming does not actively null an off-angle jammer, while MVDR tends to null the jammer if covariance estimation captures it. | Recorded the core MVDR intuition and moved next step to a jammer-nulling demo. |
+| 2026-06-09 | MVDR demo | Built and ran `demo_10_mvdr_jammer_nulling.m`, comparing conventional and MVDR weights for a 20 deg look direction with a -30 deg jammer. | Recorded that MVDR preserves look-direction gain while placing a much deeper jammer null than conventional beamforming. |
+| 2026-06-10 | MVDR diagonal loading | Said the stability/null-depth tradeoff from diagonal loading is not yet clear. | Recorded diagonal-loading intuition as the current MVDR understanding gap. |
+| 2026-06-10 | MVDR diagonal loading | Correctly answered that fewer snapshots / less reliable covariance estimates call for larger diagonal loading. | Recorded initial diagonal-loading intuition; next step is visualizing the loading sweep. |
+| 2026-06-10 | MVDR diagonal loading | Built and ran `demo_11_mvdr_diagonal_loading_sweep.m`, showing small loading yields deep jammer nulls while very large loading makes the null shallower. | Recorded visual/numerical evidence of the stability versus null-depth tradeoff. |
+| 2026-06-10 | MUSIC/MVDR assumptions | Summarized that MUSIC and MVDR need training/covariance data and are sensitive to assumptions such as source count, covariance quality, steering mismatch, and diagonal loading. | Recorded strong practical understanding of advanced beamforming tradeoffs. |
+| 2026-06-10 | CFAR scope | Asked whether CFAR must be applied to RD maps or can also apply to RA maps and RDA tensors. | Recorded understanding that CFAR is a general adaptive-threshold method for detection maps/cubes, not an RD-only algorithm. |

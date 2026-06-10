@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MUSIC vs MVDR · 雷达测角算法笔记</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+
+<style>
+:root{
+  --bg:#EDF1F4;
+  --surface:#FFFFFF;
+  --ink:#16212B;
+  --muted:#5B6B79;
+  --faint:#8A98A6;
+  --line:#D8DFE5;
+
+  --music:#0E7D8C;        /* teal — 子空间 / 精确 */
+  --music-ink:#0A5C68;
+  --music-soft:#E7F2F3;
+
+  --mvdr:#C2570F;         /* rust — 自适应 / 能量 */
+  --mvdr-ink:#9C440A;
+  --mvdr-soft:#FBEDE2;
+
+  --font-display:"Space Grotesk","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  --font-mono:"IBM Plex Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px;}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative;
+  padding:72px 0 56px;
+  border-bottom:1px solid var(--line);
+  overflow:hidden;
+}
+.hero::before{
+  content:"";
+  position:absolute;inset:0;
+  background-image:repeating-linear-gradient(90deg,rgba(22,33,43,.035) 0 1px,transparent 1px 58px);
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,transparent 78%);
+          mask-image:linear-gradient(180deg,#000 0%,transparent 78%);
+  pointer-events:none;
+}
+.hero .wrap{position:relative;}
+.eyebrow{
+  font-family:var(--font-mono);
+  text-transform:uppercase;
+  letter-spacing:.22em;
+  font-size:.72rem;
+  color:var(--muted);
+  margin:0 0 18px;
+}
+h1{
+  font-family:var(--font-display);
+  font-weight:600;
+  font-size:clamp(2.5rem,7vw,4.6rem);
+  line-height:1.02;
+  letter-spacing:-.02em;
+  margin:0;
+}
+h1 .m1{color:var(--music-ink);}
+h1 .m2{color:var(--mvdr-ink);}
+h1 .vs{
+  font-family:var(--font-mono);
+  font-weight:400;
+  font-style:italic;
+  font-size:.42em;
+  color:var(--faint);
+  vertical-align:middle;
+  margin:0 .28em;
+  letter-spacing:0;
+}
+.lede{
+  max-width:60ch;
+  font-size:1.12rem;
+  color:var(--muted);
+  margin:20px 0 0;
+}
+.sig{margin:38px 0 4px;}
+.sig svg{width:100%;height:auto;display:block;}
+.sig figcaption{
+  font-family:var(--font-mono);
+  font-size:.74rem;
+  color:var(--faint);
+  letter-spacing:.04em;
+  margin-top:8px;
+  text-align:center;
+}
+
+/* ---------- sections ---------- */
+.algo{padding:60px 0;border-bottom:1px solid var(--line);}
+.algo.music{--accent:var(--music);--accent-ink:var(--music-ink);--accent-soft:var(--music-soft);}
+.algo.mvdr {--accent:var(--mvdr); --accent-ink:var(--mvdr-ink); --accent-soft:var(--mvdr-soft);}
+
+.sec-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:14px;margin-bottom:30px;}
+.sec-no{
+  font-family:var(--font-display);
+  font-weight:500;
+  font-size:2.1rem;
+  color:var(--accent,#16212B);
+  line-height:1;
+}
+.sec-head h2{
+  font-family:var(--font-display);
+  font-weight:600;
+  font-size:1.9rem;
+  letter-spacing:-.01em;
+  margin:0;
+}
+.sec-tag{
+  font-family:var(--font-mono);
+  font-size:.74rem;
+  letter-spacing:.06em;
+  color:var(--muted);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:3px 11px;
+}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:14px;align-items:stretch;}
+.flow-arrow{display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:1.5rem;font-weight:700;line-height:1;}
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:22px 24px;
+}
+.card.idea{
+  background:var(--accent-soft);
+  border-color:color-mix(in srgb,var(--accent) 28%,var(--line));
+  border-left:3px solid var(--accent);
+  margin-bottom:18px;
+}
+.label{
+  font-family:var(--font-mono);
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  font-size:.72rem;
+  color:var(--accent-ink);
+  margin:0 0 12px;
+  display:flex;align-items:center;gap:9px;
+}
+.label::before{content:"";width:18px;height:2px;background:var(--accent);border-radius:2px;}
+.card p{margin:0;}
+.card p + p{margin-top:.8em;}
+.card .punch{font-weight:600;color:var(--ink);}
+
+ol.steps{list-style:none;counter-reset:s;margin:0;padding:0;}
+ol.steps li{
+  counter-increment:s;
+  position:relative;
+  padding-left:2.4em;
+  margin-bottom:.9em;
+}
+ol.steps li:last-child{margin-bottom:0;}
+ol.steps li::before{
+  content:counter(s);
+  position:absolute;left:0;top:.05em;
+  width:1.55em;height:1.55em;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:.78rem;font-weight:500;
+  color:#fff;background:var(--accent);
+  border-radius:7px;
+}
+
+ul.plain{list-style:none;margin:0;padding:0;}
+ul.plain li{position:relative;padding-left:1.5em;margin-bottom:.55em;}
+ul.plain li:last-child{margin-bottom:0;}
+ul.plain li::before{
+  content:"";position:absolute;left:0;top:.62em;
+  width:6px;height:6px;border-radius:50%;
+  background:var(--accent);
+}
+
+/* formula band */
+.formulas{
+  margin-top:18px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:22px 24px 6px;
+}
+.formulas > .label{color:var(--accent-ink);}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;}
+.fml{padding:10px 0 16px;border-top:1px dashed var(--line);}
+.fml:nth-child(1),.fml:nth-child(2){border-top:none;}
+.fcap{font-family:var(--font-mono);font-size:.7rem;color:var(--muted);letter-spacing:.04em;margin:0 0 2px;}
+.fml .katex-display{margin:.35em 0;text-align:left;}
+.fml .katex{font-size:1.04em;}
+
+/* ---------- compare ---------- */
+.compare{padding:60px 0;}
+.compare .sec-no{color:var(--ink);}
+.compare-intro{max-width:70ch;color:var(--muted);font-size:1.05rem;margin:0 0 26px;}
+.compare-intro b{color:var(--ink);}
+
+.howr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 30px;}
+.chip{border-radius:12px;padding:16px 18px;border:1px solid var(--line);}
+.chip.music{background:var(--music-soft);border-color:color-mix(in srgb,var(--music) 26%,var(--line));}
+.chip.mvdr {background:var(--mvdr-soft); border-color:color-mix(in srgb,var(--mvdr) 26%,var(--line));}
+.chip .name{font-family:var(--font-display);font-weight:600;font-size:1.05rem;margin:0 0 4px;}
+.chip.music .name{color:var(--music-ink);}
+.chip.mvdr .name{color:var(--mvdr-ink);}
+.chip p{margin:0;font-size:.96rem;color:var(--ink);}
+.chip .need{display:inline-block;margin-top:8px;font-family:var(--font-mono);font-size:.72rem;letter-spacing:.04em;color:var(--muted);}
+
+.spectrum-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:22px 24px;margin:0 0 30px;
+}
+.spectrum-card .label{color:var(--ink);}
+.spectrum-card svg{width:100%;height:auto;display:block;}
+.spectrum-card .note{font-size:.88rem;color:var(--muted);margin:10px 2px 0;}
+
+.proscons{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.pc{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);}
+.pc-head{padding:14px 22px;font-family:var(--font-display);font-weight:600;font-size:1.15rem;color:#fff;}
+.pc.music .pc-head{background:var(--music);}
+.pc.mvdr  .pc-head{background:var(--mvdr);}
+.pc-body{padding:18px 22px 20px;}
+.pc-sub{font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.12em;font-size:.7rem;color:var(--muted);margin:0 0 9px;}
+.pc-body .gap{margin-top:18px;}
+ul.marks{list-style:none;margin:0;padding:0;}
+ul.marks li{position:relative;padding-left:1.7em;margin-bottom:.5em;font-size:.96rem;}
+ul.marks li:last-child{margin-bottom:0;}
+ul.marks.pro li::before{content:"✓";position:absolute;left:0;top:0;font-weight:700;}
+.pc.music ul.marks.pro li::before{color:var(--music);}
+.pc.mvdr  ul.marks.pro li::before{color:var(--mvdr);}
+ul.marks.con li::before{content:"✕";position:absolute;left:0;top:0;color:var(--faint);font-size:.85em;top:.15em;}
+
+.pick{
+  margin-top:30px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-left:4px solid var(--ink);
+  border-radius:12px;
+  padding:20px 24px;
+}
+.pick .label{color:var(--ink);}
+.pick p{margin:0;font-size:1.02rem;}
+.pick .k-music{color:var(--music-ink);font-weight:600;}
+.pick .k-mvdr{color:var(--mvdr-ink);font-weight:600;}
+
+/* ---------- footer ---------- */
+footer{background:var(--ink);color:#D9E0E6;padding:48px 0 56px;}
+footer .label{color:#7FB6BE;}
+footer p{margin:0;max-width:78ch;font-size:1.05rem;line-height:1.75;}
+footer p + p{margin-top:.9em;color:#A9B4BD;font-size:.98rem;}
+footer .hl{color:#fff;font-weight:600;}
+footer .src{font-family:var(--font-mono);font-size:.72rem;color:#6E7C86;letter-spacing:.05em;margin-top:26px;}
+
+code{font-family:var(--font-mono);font-size:.88em;background:rgba(22,33,43,.06);padding:.1em .4em;border-radius:5px;}
+
+a{color:inherit;}
+:focus-visible{outline:2px solid var(--music);outline-offset:3px;border-radius:3px;}
+
+@media (max-width:720px){
+  .grid,.flow,.fgrid,.howr,.proscons{grid-template-columns:1fr;}
+  .flow-arrow{transform:rotate(90deg);margin:-2px 0;}
+  .fml:nth-child(2){border-top:1px dashed var(--line);}
+  .hero{padding:54px 0 40px;}
+  .algo,.compare{padding:48px 0;}
+}
+
+@media (prefers-reduced-motion:no-preference){
+  .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease;}
+  .reveal.in{opacity:1;transform:none;}
+}
+</style>
+</head>
+
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow reveal">雷达阵列信号处理 · DOA / 测角</p>
+    <h1 class="reveal"><span class="m1">MUSIC</span><span class="vs">vs</span><span class="m2">MVDR</span></h1>
+    <p class="lede reveal">子空间正交 与 最小方差无失真 —— 两种从<strong>同一个协方差矩阵</strong>出发、却走向不同终点的测角方法。</p>
+
+    <figure class="sig reveal">
+      <svg viewBox="0 0 900 300" role="img" aria-label="从快拍到协方差矩阵，再分岔为 MUSIC 与 MVDR 的示意图">
+        <defs>
+          <marker id="ahN" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6B7A87"/></marker>
+          <marker id="ahM" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#0E7D8C"/></marker>
+          <marker id="ahV" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#C2570F"/></marker>
+        </defs>
+
+        <!-- snapshots -->
+        <g>
+          <rect x="56"  y="130" width="10" height="80"  rx="3" fill="#9AA8B4"/>
+          <rect x="72"  y="90"  width="10" height="120" rx="3" fill="#B4C0CA"/>
+          <rect x="88"  y="152" width="10" height="58"  rx="3" fill="#9AA8B4"/>
+          <rect x="104" y="110" width="10" height="100" rx="3" fill="#B4C0CA"/>
+          <text x="82" y="234" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="12" fill="#5B6B79">snapshots</text>
+          <text x="82" y="250" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="12" fill="#8A98A6">xₙ ∈ ℂᴹ</text>
+        </g>
+
+        <line x1="128" y1="150" x2="292" y2="150" stroke="#6B7A87" stroke-width="2" marker-end="url(#ahN)"/>
+
+        <!-- covariance node -->
+        <g>
+          <rect x="298" y="96" width="134" height="108" rx="14" fill="#FFFFFF" stroke="#C8D2DA" stroke-width="1.5"/>
+          <!-- 3x3 grid -->
+          <g stroke="#E3EAEF">
+            <rect x="314" y="112" width="28" height="20" rx="3" fill="#DCE6EB"/>
+            <rect x="351" y="112" width="28" height="20" rx="3" fill="#F2F5F7"/>
+            <rect x="388" y="112" width="28" height="20" rx="3" fill="#F2F5F7"/>
+            <rect x="314" y="140" width="28" height="20" rx="3" fill="#F2F5F7"/>
+            <rect x="351" y="140" width="28" height="20" rx="3" fill="#DCE6EB"/>
+            <rect x="388" y="140" width="28" height="20" rx="3" fill="#F2F5F7"/>
+            <rect x="314" y="168" width="28" height="20" rx="3" fill="#F2F5F7"/>
+            <rect x="351" y="168" width="28" height="20" rx="3" fill="#F2F5F7"/>
+            <rect x="388" y="168" width="28" height="20" rx="3" fill="#DCE6EB"/>
+          </g>
+          <text x="365" y="228" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="12.5" fill="#16212B">R̂ · 协方差 (M×M)</text>
+        </g>
+
+        <!-- diverging arrows -->
+        <path d="M432,150 C 506,150 524,92 594,92"   fill="none" stroke="#0E7D8C" stroke-width="2.2" marker-end="url(#ahM)"/>
+        <path d="M432,150 C 506,150 524,208 594,208" fill="none" stroke="#C2570F" stroke-width="2.2" marker-end="url(#ahV)"/>
+
+        <!-- MUSIC node -->
+        <g>
+          <rect x="600" y="60" width="284" height="64" rx="12" fill="#E7F2F3" stroke="#0E7D8C" stroke-width="1.5"/>
+          <text x="624" y="89"  font-family="Space Grotesk,sans-serif" font-weight="600" font-size="19" fill="#0A5C68">MUSIC</text>
+          <text x="624" y="108" font-family="IBM Plex Sans,sans-serif" font-size="12.5" fill="#5B6B79">特征分解 → 信号 / 噪声子空间正交</text>
+        </g>
+        <!-- MVDR node -->
+        <g>
+          <rect x="600" y="176" width="284" height="64" rx="12" fill="#FBEDE2" stroke="#C2570F" stroke-width="1.5"/>
+          <text x="624" y="205" font-family="Space Grotesk,sans-serif" font-weight="600" font-size="19" fill="#9C440A">MVDR</text>
+          <text x="624" y="224" font-family="IBM Plex Sans,sans-serif" font-size="12.5" fill="#5B6B79">矩阵求逆 → 约束下最小方差</text>
+        </g>
+
+        <text x="365" y="282" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="#8A98A6">分岔点：两者都从同一个 R̂ 出发</text>
+      </svg>
+      <figcaption>共同的起点，分岔的用法</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ MUSIC ============ -->
+<section class="algo music" id="music">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-no">01</span>
+      <h2>MUSIC 算法</h2>
+      <span class="sec-tag">MUltiple SIgnal Classification</span>
+    </div>
+
+    <article class="card idea reveal">
+      <p class="label">核心思想 · idea</p>
+      <p><span class="punch">不靠功率最大化测角，而靠子空间的正交性。</span>把接收协方差矩阵分解成「信号子空间」和「噪声子空间」。真实目标方向的 steering vector 必然落在信号子空间里，因而必然与噪声子空间正交。</p>
+      <p>于是只要扫描所有候选角度，看哪个方向的 steering vector 与噪声子空间「最正交」（投影最小），那里就是目标。这是 MUSIC 能做到超分辨的根本原因 —— 它判断的是「在不在子空间里」，而不是「功率有多大」。</p>
+    </article>
+
+    <div class="flow">
+      <article class="card flow-step reveal">
+        <p class="label">输入数据 · input</p>
+        <ul class="plain">
+          <li><span class="punch">阵列快拍</span>：\(M\) 个阵元、\(N\) 个快拍的接收向量 \(\mathbf x[1],\dots,\mathbf x[N]\in\mathbb C^{M}\)（半波长 ULA 时 \(\mathbf a(\theta)=[1,e^{j\pi\sin\theta},\dots]^{\mathsf T}\)）。</li>
+          <li><span class="punch">目标数 \(K\)</span>：需要预先知道或估计（信号子空间维度），通常 \(K \lt M\)，并用 eigenvalue gap / AIC / MDL 来估。</li>
+          <li><span class="punch">扫描角度网格</span> \(\theta\)。</li>
+        </ul>
+      </article>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <article class="card flow-step reveal">
+        <p class="label">算法步骤 · algorithm</p>
+        <ol class="steps">
+          <li>估计样本协方差矩阵 \(\hat{\mathbf R}=\frac1N\mathbf X\mathbf X^{\mathsf H}\)。</li>
+          <li>对 \(\hat{\mathbf R}\) 做特征分解并按特征值从大到小排序：最大的 \(K\) 个特征向量张成信号子空间 \(\mathbf E_s\)，其余 \(M-K\) 个张成噪声子空间 \(\mathbf E_n\)。</li>
+          <li>扫描每个候选角度，计算 MUSIC 伪谱 \(P(\theta)=1/\lVert\mathbf E_n^{\mathsf H}\mathbf a(\theta)\rVert_2^{2}\)。</li>
+          <li>找谱峰：峰值位置即估计出的目标角度（\(K\) 个目标找 \(K\) 个峰）。</li>
+        </ol>
+      </article>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <article class="card flow-step reveal">
+        <p class="label">输出 · output</p>
+        <p>一条 <span class="punch">MUSIC 伪谱（pseudo-spectrum）</span>：在真实方向处分母趋近 0、出现非常尖锐的峰。峰的位置 = <span class="punch">DOA 角度估计</span>。</p>
+        <p>注意它是「伪」谱：纵轴<strong>没有物理功率含义</strong>，只反映「有多正交 / 多像一个目标」，不能直接当作各方向的能量，本身也不提供干扰抑制能力。</p>
+      </article>
+    </div>
+
+    <div class="formulas reveal">
+      <p class="label">关键公式</p>
+      <div class="fgrid">
+        <div class="fml"><p class="fcap">阵列信号模型</p>\[ \mathbf x[n]=\mathbf A(\boldsymbol\theta)\,\mathbf s[n]+\mathbf w[n] \]</div>
+        <div class="fml"><p class="fcap">协方差的子空间结构</p>\[ \mathbf R_x=\mathbf A\mathbf R_s\mathbf A^{\mathsf H}+\sigma^{2}\mathbf I \]</div>
+        <div class="fml"><p class="fcap">核心：方向与噪声子空间正交</p>\[ \mathbf E_n^{\mathsf H}\,\mathbf a(\theta_k)=\mathbf 0 \]</div>
+        <div class="fml"><p class="fcap">MUSIC 伪谱</p>\[ P_{\text{MUSIC}}(\theta)=\dfrac{1}{\mathbf a^{\mathsf H}(\theta)\,\mathbf E_n\mathbf E_n^{\mathsf H}\,\mathbf a(\theta)} \]</div>
+      </div>
+    </div>
+
+    <div class="example reveal">
+      <p class="label">示例 · 看它怎么跑起来</p>
+      <div class="given">
+        <span class="pill">M = 8 阵元 · ULA · d = λ/2</span>
+        <span class="pill">θ₁ = −20°</span>
+        <span class="pill">θ₂ = 35°</span>
+        <span class="pill">K = 2</span>
+        <span class="pill">N = 200 快拍</span>
+        <span class="pill">SNR = 15 dB</span>
+      </div>
+      <p>算出样本协方差 \(\hat{\mathbf R}\) 的 8 个特征值，大致是 <code>[9.87, 6.46, 0.075, 0.070, 0.062, 0.058, 0.053, 0.047]</code>：</p>
+      <figure class="ex-fig">
+        <svg viewBox="0 0 600 250" role="img" aria-label="样本协方差矩阵的 8 个特征值，前两个明显大、后六个接近噪声基底">
+          <defs>
+            <marker id="ahK" markerWidth="8" markerHeight="8" refX="5.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#16212B"/></marker>
+          </defs>
+          <line x1="56" y1="185" x2="490" y2="185" stroke="#C8D2DA" stroke-width="1"/>
+          <rect x="66"  y="45"  width="36" height="140" rx="4" fill="#0E7D8C"/>
+          <rect x="120" y="93"  width="36" height="92"  rx="4" fill="#0E7D8C"/>
+          <rect x="174" y="179" width="36" height="6"   rx="2" fill="#AEB9C3"/>
+          <rect x="228" y="179" width="36" height="6"   rx="2" fill="#AEB9C3"/>
+          <rect x="282" y="179" width="36" height="6"   rx="2" fill="#AEB9C3"/>
+          <rect x="336" y="179" width="36" height="6"   rx="2" fill="#AEB9C3"/>
+          <rect x="390" y="179" width="36" height="6"   rx="2" fill="#AEB9C3"/>
+          <rect x="444" y="179" width="36" height="6"   rx="2" fill="#AEB9C3"/>
+          <g font-family="IBM Plex Mono,monospace" font-size="12" fill="#0A5C68" text-anchor="middle">
+            <text x="84"  y="38">9.87</text>
+            <text x="138" y="86">6.46</text>
+          </g>
+          <text x="327" y="170" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="#7E8B96">≈ σ² （噪声基底）</text>
+          <text x="232" y="92" font-family="IBM Plex Sans,sans-serif" font-size="13" fill="#16212B">λ₂ 与 λ₃ 间骤降 ⇒ 估 K = 2</text>
+          <path d="M228,98 C 202,104 184,122 170,142" fill="none" stroke="#16212B" stroke-width="1.2" marker-end="url(#ahK)"/>
+          <g font-family="IBM Plex Mono,monospace" font-size="11" fill="#5B6B79" text-anchor="middle">
+            <text x="84"  y="202">λ₁</text>
+            <text x="138" y="202">λ₂</text>
+            <text x="192" y="202">λ₃</text>
+            <text x="246" y="202">λ₄</text>
+            <text x="300" y="202">λ₅</text>
+            <text x="354" y="202">λ₆</text>
+            <text x="408" y="202">λ₇</text>
+            <text x="462" y="202">λ₈</text>
+          </g>
+          <line x1="66"  y1="214" x2="156" y2="214" stroke="#0E7D8C" stroke-width="3" stroke-linecap="round"/>
+          <line x1="174" y1="214" x2="480" y2="214" stroke="#AEB9C3" stroke-width="3" stroke-linecap="round"/>
+          <text x="111" y="231" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="12" fill="#0A5C68">信号子空间 Eₛ</text>
+          <text x="327" y="231" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="12" fill="#6E7C86">噪声子空间 Eₙ</text>
+        </svg>
+        <figcaption>特征值谱 · 前 2 个属信号，后 6 个 ≈ 噪声</figcaption>
+      </figure>
+      <ul class="run">
+        <li>前两个特征值（9.87、6.46）明显大，后六个都缩到 ≈ σ² 的小值 —— 这道「断崖」直接给出信号子空间维度 <strong>K = 2</strong>。</li>
+        <li>把后 6 个特征向量取出来，组成噪声子空间 \(\mathbf E_n\)。</li>
+        <li>在 −90°~90° 上逐点扫描，算 \(1/\lVert\mathbf E_n^{\mathsf H}\mathbf a(\theta)\rVert^2\)。</li>
+        <li>谱在 <strong>−20°</strong> 与 <strong>35°</strong> 处冲起两个尖峰 —— 这就是估出的两个目标方向。</li>
+      </ul>
+      <p class="ex-punch"><span class="tag">一句话</span>先用「特征值断崖」定出子空间，再用「正交性」把真实角度顶成尖峰；若 K 估错，噪声子空间随之出错，谱就乱了。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MVDR ============ -->
+<section class="algo mvdr" id="mvdr">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-no">02</span>
+      <h2>MVDR / Capon 波束形成</h2>
+      <span class="sec-tag">Minimum Variance Distortionless Response</span>
+    </div>
+
+    <article class="card idea reveal">
+      <p class="label">核心思想 · idea</p>
+      <p><span class="punch">不分子空间，而是设计一个空间滤波器</span>（一组复权重 \(\mathbf w\)）：约束目标方向 \(\theta_0\)「无失真通过」（增益恒为 1），在此前提下让阵列<strong>输出总功率最小</strong>。</p>
+      <p>因为输出功率里包含了干扰 + 噪声，最小化它就等于在保住目标的同时，<strong>自动往强干扰方向挖零点（null）</strong>。一句话：目标方向保真约束下最小化输出能量，从而自适应压制干扰。</p>
+    </article>
+
+    <div class="flow">
+      <article class="card flow-step reveal">
+        <p class="label">输入数据 · input</p>
+        <ul class="plain">
+          <li><span class="punch">阵列快拍</span>：\(M\) 个阵元、\(N\) 个快拍的接收向量 \(\mathbf x[1],\dots,\mathbf x[N]\in\mathbb C^{M}\)。</li>
+          <li><span class="punch">目标方向 \(\theta_0\)</span>（做波束形成时），或一组扫描角度网格（做 MVDR 谱估计 DOA 时）。</li>
+          <li><span class="punch">不一定需要目标数 \(K\)</span> —— 这是它和 MUSIC 的重要区别。</li>
+        </ul>
+      </article>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <article class="card flow-step reveal">
+        <p class="label">算法步骤 · algorithm</p>
+        <ol class="steps">
+          <li>估计样本协方差矩阵 \(\hat{\mathbf R}=\frac1N\mathbf X\mathbf X^{\mathsf H}\)。</li>
+          <li>做对角加载 \(\hat{\mathbf R}_{\text{load}}=\hat{\mathbf R}+\epsilon\mathbf I\)（样本少时 \(\hat{\mathbf R}\) 易病态/不可逆；常取 \(\epsilon=\alpha\,\mathrm{tr}(\hat{\mathbf R})/M,\ \alpha\approx10^{-2}\)）。</li>
+          <li>求权重 \(\mathbf w=\hat{\mathbf R}^{-1}\mathbf a(\theta_0)\big/\big(\mathbf a^{\mathsf H}\hat{\mathbf R}^{-1}\mathbf a(\theta_0)\big)\)；或对每个扫描角算 MVDR 谱。</li>
+          <li>工程上别显式求逆 —— 解线性方程 \(\hat{\mathbf R}_{\text{load}}\mathbf z=\mathbf a(\theta)\) 再取 \(P=1/(\mathbf a^{\mathsf H}\mathbf z)\)，更数值稳定。</li>
+        </ol>
+      </article>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <article class="card flow-step reveal">
+        <p class="label">输出 · output</p>
+        <p><span class="punch">用法一 · 波束形成</span>：一组权重 \(\mathbf w\)，即一个空间滤波器 —— \(\theta_0\) 方向增益为 1、强干扰方向自动形成 null；滤波输出 \(y[n]=\mathbf w^{\mathsf H}\mathbf x[n]\) 把干扰压低。</p>
+        <p><span class="punch">用法二 · DOA 估计</span>：一条 MVDR 空间谱，在目标方向出现峰。与 MUSIC 不同，它对应「该方向无失真约束下的<strong>最小输出功率</strong>」，是<strong>有功率含义</strong>的；分辨率优于 delay-and-sum，但通常不如 MUSIC 尖锐。</p>
+      </article>
+    </div>
+
+    <div class="formulas reveal">
+      <p class="label">关键公式</p>
+      <div class="fgrid">
+        <div class="fml"><p class="fcap">波束形成器（加权求和）</p>\[ y[n]=\mathbf w^{\mathsf H}\mathbf x[n] \]</div>
+        <div class="fml"><p class="fcap">优化问题：无失真约束下最小方差</p>\[ \min_{\mathbf w}\ \mathbf w^{\mathsf H}\mathbf R_x\mathbf w \quad\text{s.t.}\quad \mathbf w^{\mathsf H}\mathbf a(\theta_0)=1 \]</div>
+        <div class="fml"><p class="fcap">闭式解（多了一个 R⁻¹）</p>\[ \mathbf w_{\text{MVDR}}=\dfrac{\mathbf R_x^{-1}\mathbf a(\theta_0)}{\mathbf a^{\mathsf H}(\theta_0)\,\mathbf R_x^{-1}\,\mathbf a(\theta_0)} \]</div>
+        <div class="fml"><p class="fcap">MVDR / Capon 谱</p>\[ P_{\text{MVDR}}(\theta)=\dfrac{1}{\mathbf a^{\mathsf H}(\theta)\,\mathbf R_x^{-1}\,\mathbf a(\theta)} \]</div>
+      </div>
+    </div>
+
+    <div class="example reveal">
+      <p class="label">示例 · 看它怎么跑起来</p>
+      <div class="given">
+        <span class="pill">M = 8 阵元</span>
+        <span class="pill">目标 θ₀ = 10° · SNR 0 dB</span>
+        <span class="pill">强干扰 θᵢ = −30° · INR 30 dB</span>
+        <span class="pill">N = 200 快拍</span>
+      </div>
+      <p>用 \(\hat{\mathbf R}^{-1}\) 解出权重 \(\mathbf w\)：它满足 \(\mathbf w^{\mathsf H}\mathbf a(10^\circ)=1\)，同时把 \(\mathbf w^{\mathsf H}\mathbf a(-30^\circ)\) 压到 ≈ 0。画出波束方向图：</p>
+      <figure class="ex-fig">
+        <svg id="beampattern" viewBox="0 0 640 300" role="img" aria-label="MVDR 与 delay-and-sum 波束方向图对比，目标方向 0 dB、干扰方向深 null">
+          <g stroke="#E3EAEF" stroke-width="1">
+            <line x1="52" y1="50"  x2="620" y2="50"/>
+            <line x1="52" y1="130" x2="620" y2="130"/>
+            <line x1="52" y1="210" x2="620" y2="210"/>
+          </g>
+          <g font-family="IBM Plex Mono,monospace" font-size="10.5" fill="#8A98A6" text-anchor="end">
+            <text x="46" y="54">0 dB</text>
+            <text x="46" y="134">−20</text>
+            <text x="46" y="214">−40</text>
+          </g>
+          <line x1="52" y1="250" x2="620" y2="250" stroke="#C8D2DA" stroke-width="1.5"/>
+          <g font-family="IBM Plex Mono,monospace" font-size="10.5" fill="#8A98A6" text-anchor="middle">
+            <text x="52"  y="268">−90°</text>
+            <text x="147" y="268">−60°</text>
+            <text x="241" y="268">−30°</text>
+            <text x="336" y="268">0°</text>
+            <text x="431" y="268">30°</text>
+            <text x="525" y="268">60°</text>
+            <text x="620" y="268">90°</text>
+          </g>
+          <line x1="368" y1="50" x2="368" y2="250" stroke="#0E7D8C" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="241" y1="40" x2="241" y2="250" stroke="#C2570F" stroke-width="1" stroke-dasharray="4 4"/>
+          <text x="368" y="26" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill="#0A5C68">目标 10°</text>
+          <text x="241" y="26" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill="#9C440A">干扰 −30°</text>
+          <polyline id="dsBeam" fill="none" stroke="#AEB9C3" stroke-width="2" stroke-linejoin="round"/>
+          <polyline id="mvdrBeam" fill="none" stroke="#C2570F" stroke-width="2.4" stroke-linejoin="round"/>
+          <circle cx="368" cy="50" r="3.5" fill="#0E7D8C"/>
+          <text x="255" y="234" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#9C440A">↓ MVDR 在此挖深 null</text>
+          <g font-family="IBM Plex Sans,sans-serif" font-size="12">
+            <line x1="486" y1="44" x2="512" y2="44" stroke="#C2570F" stroke-width="3"/>
+            <text x="520" y="48" fill="#9C440A">MVDR</text>
+            <line x1="486" y1="62" x2="512" y2="62" stroke="#AEB9C3" stroke-width="3"/>
+            <text x="520" y="66" fill="#6E7C86">Delay-and-Sum</text>
+          </g>
+        </svg>
+        <figcaption>波束方向图 · 目标 0 dB 保真，干扰方向被 MVDR 摁成深坑</figcaption>
+      </figure>
+      <ul class="run">
+        <li><strong>目标 10°</strong>：增益恒为 0 dB —— 这是「无失真」约束 \(\mathbf w^{\mathsf H}\mathbf a(\theta_0)=1\) 的直接结果。</li>
+        <li><strong>干扰 −30°</strong>：MVDR 自动挖出一个很深的 null，把 30 dB 的强干扰摁下去；对比之下，普通 delay-and-sum 在 −30° 只是一个旁瓣，干扰会漏进来。</li>
+        <li>关键：MVDR <strong>并不需要事先知道</strong>「干扰在 −30°」—— 它只是看到协方差里那个方向能量特别大，乘上 \(\mathbf R^{-1}\) 后就自动把它压掉。</li>
+      </ul>
+      <p class="ex-punch"><span class="tag">一句话</span>MVDR 把目标方向「钉在 0 dB」，把能量大的干扰方向「踩成深坑」，全程不用人工指定干扰在哪。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARE ============ -->
+<section class="compare" id="compare">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-no">03</span>
+      <h2>两者对比</h2>
+    </div>
+
+    <p class="compare-intro reveal">两者都从同一个 \(M\times M\) 空间协方差矩阵出发 —— \(\hat{\mathbf R}=\frac1N\sum_n\mathbf x_n\mathbf x_n^{\mathsf H}\) 描述各 channel 之间的平均复相关：<b>对角线 = 各通道功率，非对角线 \(R_{ij}\) = 通道之间的相位差 / 相关</b>，角度信息正藏在这些通道对的稳定相位关系里。<b>分歧只在于「怎么用这个 R」。</b></p>
+
+    <div class="howr reveal">
+      <div class="chip music">
+        <p class="name">MUSIC 怎么用 R</p>
+        <p>先<strong>特征分解</strong> → 取出噪声子空间 → 用正交性 \(\mathbf E_n^{\mathsf H}\mathbf a(\theta)=\mathbf 0\) 扫角找峰。</p>
+        <span class="need">需要：目标数 K</span>
+      </div>
+      <div class="chip mvdr">
+        <p class="name">MVDR 怎么用 R</p>
+        <p>直接用 <strong>\(\mathbf R^{-1}\)</strong> → 在「目标方向增益 = 1」约束下解最小方差权重 \(\mathbf w\)。</p>
+        <span class="need">不一定需要：目标数 K</span>
+      </div>
+    </div>
+
+    <div class="spectrum-card reveal">
+      <p class="label">分辨率示意 · 两个相近目标</p>
+      <svg id="spectrum" viewBox="0 0 640 300" role="img" aria-label="MUSIC 与 MVDR 空间谱的分辨率对比示意图">
+        <!-- baseline -->
+        <line x1="48" y1="250" x2="616" y2="250" stroke="#C8D2DA" stroke-width="1.5"/>
+        <!-- true target markers -->
+        <line id="t1line" x1="0" y1="56" x2="0" y2="250" stroke="#9AA8B4" stroke-width="1" stroke-dasharray="4 4"/>
+        <line id="t2line" x1="0" y1="56" x2="0" y2="250" stroke="#9AA8B4" stroke-width="1" stroke-dasharray="4 4"/>
+        <text id="t1txt" x="0" y="270" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="#5B6B79">θ₁</text>
+        <text id="t2txt" x="0" y="270" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="#5B6B79">θ₂</text>
+        <text x="332" y="291" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="#8A98A6">角度 θ (°) →  真实目标 = 两条虚线</text>
+        <!-- curves (filled by JS) -->
+        <polyline id="mvdrCurve"  fill="none" stroke="#C2570F" stroke-width="2.4" stroke-linejoin="round"/>
+        <polyline id="musicCurve" fill="none" stroke="#0E7D8C" stroke-width="2.4" stroke-linejoin="round"/>
+        <!-- legend -->
+        <g font-family="IBM Plex Sans,sans-serif" font-size="12.5">
+          <line x1="404" y1="32" x2="430" y2="32" stroke="#0E7D8C" stroke-width="3"/>
+          <text x="438" y="36" fill="#0A5C68">MUSIC（尖锐 · 超分辨）</text>
+          <line x1="404" y1="52" x2="430" y2="52" stroke="#C2570F" stroke-width="3"/>
+          <text x="438" y="56" fill="#9C440A">MVDR（较宽 · 分辨率低）</text>
+        </g>
+      </svg>
+      <p class="note">同样两个相近目标：MUSIC 谱给出两个分得开的尖峰；MVDR 谱较宽、两峰几乎并成一个，难以分辨。（示意图，仅说明趋势）</p>
+    </div>
+
+    <div class="proscons">
+      <div class="pc music reveal">
+        <div class="pc-head">MUSIC</div>
+        <div class="pc-body">
+          <p class="pc-sub">优点</p>
+          <ul class="marks pro">
+            <li>超分辨：谱峰极尖，高 SNR + 足够快拍 + 模型准确时能分开非常接近的两个目标。</li>
+            <li>DOA 估计精度通常高于 MVDR。</li>
+            <li>物理图像清晰（信号 / 噪声子空间正交）。</li>
+          </ul>
+          <p class="pc-sub gap">缺点</p>
+          <ul class="marks con">
+            <li>必须知道 / 估计目标数 \(K\)；K 估错，噪声子空间就错，谱会乱。</li>
+            <li>相干源（多径、强相关反射）下 \(\mathbf R_s\) 降秩、子空间维度不足，普通 MUSIC 失效，需 spatial smoothing / forward-backward / root-MUSIC。</li>
+            <li>对阵列模型误差敏感：阵元位置误差、互耦、相位/增益失配、近场用远场模型、宽带用窄带模型。</li>
+            <li>快拍太少时样本协方差噪声大、子空间不稳。</li>
+            <li>需要特征分解；输出是「伪谱」，无功率含义，本身不抑制干扰。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="pc mvdr reveal">
+        <div class="pc-head">MVDR</div>
+        <div class="pc-body">
+          <p class="pc-sub">优点</p>
+          <ul class="marks pro">
+            <li>自适应抑制干扰，且<strong>无需显式知道干扰方向</strong> —— 强干扰会被自动挖 null。</li>
+            <li>不一定需要目标数 \(K\)。</li>
+            <li>分辨率优于普通 delay-and-sum；MVDR 谱有真实功率含义。</li>
+            <li>输出是可直接使用的空间滤波器权重 \(\mathbf w\)（不仅测角，还能滤波）。</li>
+          </ul>
+          <p class="pc-sub gap">缺点</p>
+          <ul class="marks con">
+            <li>对协方差估计敏感，样本少时需对角加载等正则化。</li>
+            <li>对 steering vector mismatch（导向矢量失配 / 校准误差）敏感。</li>
+            <li>需要矩阵求逆 / 解线性方程，计算量与数值稳定性需注意。</li>
+            <li>存在 <strong>self-nulling</strong>：当目标本身很强又进入用于估计 R 的数据时，可能被当成「强能量方向」而误压。</li>
+            <li>DOA 分辨率通常不如 MUSIC 尖锐。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="pick reveal">
+      <p class="label">一句话怎么选</p>
+      <p>要「<span class="k-music">超分辨、精确测角</span>」、且能可靠估到源数、阵列模型准 —— 用 <span class="k-music">MUSIC</span>；要「<span class="k-mvdr">在干扰环境里保住目标、做自适应空间滤波</span>」、又不想纠结源数 —— 用 <span class="k-mvdr">MVDR</span>。许多系统两者结合：先 MVDR / STAP 压干扰，再做角度细估。</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="label">最核心的一句话</p>
+    <p><span class="hl">协方差矩阵</span>是你从 radar datacube 里抽出很多 channel snapshots、再统计所有 channel-pair 的平均复相关，得到的 \(M\times M\) 空间结构矩阵。</p>
+    <p><span class="hl">MUSIC</span> 用它找信号子空间和噪声子空间；<span class="hl">MVDR</span> 用它知道哪些空间模式能量大，然后在保留目标方向的同时压掉这些模式。</p>
+    <p class="src">整理自对话笔记 · radar_music_mvdr_covariance_notes</p>
+  </div>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  /* ---- KaTeX ---- */
+  if (window.renderMathInElement) {
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "\\[", right: "\\]", display: true },
+        { left: "\\(", right: "\\)", display: false }
+      ],
+      throwOnError: false
+    });
+  }
+
+  /* ---- spectrum chart ---- */
+  (function () {
+    var W = 640, padL = 48, padR = 24, top = 56, base = 250;
+    var plotW = W - padL - padR;
+    var t1 = 9, t2 = 18;                 // two close targets (degrees)
+    var X = function (a) { return padL + (a + 45) / 90 * plotW; };
+    var Y = function (v) { return base - v * (base - top); };
+    var g = function (a, mu, s) { return Math.exp(-((a - mu) * (a - mu)) / (2 * s * s)); };
+
+    var mPts = [], vPts = [], a;
+    for (a = -45; a <= 45.0001; a += 0.4) {
+      mPts.push([a, Math.max(g(a, t1, 1.6), g(a, t2, 1.6))]);   // sharp, resolved
+      vPts.push([a, g(a, t1, 6.8) + g(a, t2, 6.8)]);            // broad, merged
+    }
+    var mMax = Math.max.apply(null, mPts.map(function (p) { return p[1]; }));
+    var vMax = Math.max.apply(null, vPts.map(function (p) { return p[1]; }));
+
+    var toStr = function (pts, max, scale) {
+      return pts.map(function (p) { return X(p[0]).toFixed(1) + ',' + Y(scale * p[1] / max).toFixed(1); }).join(' ');
+    };
+    var mc = document.getElementById('musicCurve');
+    var vc = document.getElementById('mvdrCurve');
+    if (mc) mc.setAttribute('points', toStr(mPts, mMax, 1.0));
+    if (vc) vc.setAttribute('points', toStr(vPts, vMax, 0.92));
+
+    /* place true-target guides */
+    var setX = function (id, x) { var e = document.getElementById(id); if (e) { e.setAttribute('x1', x); e.setAttribute('x2', x); } };
+    var setTx = function (id, x) { var e = document.getElementById(id); if (e) e.setAttribute('x', x); };
+    setX('t1line', X(t1).toFixed(1)); setX('t2line', X(t2).toFixed(1));
+    setTx('t1txt', X(t1).toFixed(1)); setTx('t2txt', X(t2).toFixed(1));
+  })();
+
+  /* ---- MVDR beampattern ---- */
+  (function () {
+    var W = 640, padL = 52, padR = 20, top = 30, base = 250;
+    var plotW = W - padL - padR, yspan = base - top;
+    var M = 8, d = 0.5;
+    var u0 = Math.sin(10 * Math.PI / 180), ui = Math.sin(-30 * Math.PI / 180);
+    var X = function (t) { return padL + (t + 90) / 180 * plotW; };
+    var Ydb = function (db) { if (db < -50) db = -50; if (db > 5) db = 5; return base - (db + 50) / 55 * yspan; };
+    var af = function (u) { var x = Math.PI * d * (u - u0); var den = M * Math.sin(x); if (Math.abs(den) < 1e-7) return 1; return Math.sin(M * x) / den; };
+    var notch = function (u) { var s = 0.03; return 1 - Math.exp(-((u - ui) * (u - ui)) / (2 * s * s)); };
+    var ds = [], mv = [], t, u;
+    for (t = -90; t <= 90.0001; t += 0.4) {
+      u = Math.sin(t * Math.PI / 180);
+      ds.push([t, 20 * Math.log10(Math.abs(af(u)) + 1e-9)]);
+      mv.push([t, 20 * Math.log10(Math.abs(af(u) * notch(u)) + 1e-9)]);
+    }
+    var str = function (arr) { return arr.map(function (p) { return X(p[0]).toFixed(1) + ',' + Ydb(p[1]).toFixed(1); }).join(' '); };
+    var e1 = document.getElementById('dsBeam'); if (e1) e1.setAttribute('points', str(ds));
+    var e2 = document.getElementById('mvdrBeam'); if (e2) e2.setAttribute('points', str(mv));
+  })();
+
+  /* ---- reveal on scroll ---- */
+  var els = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    els.forEach(function (el) { el.classList.add('in'); });
+  } else if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.12 });
+    els.forEach(function (el) { io.observe(el); });
+  } else {
+    els.forEach(function (el) { el.classList.add('in'); });
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二维相控阵雷达信号模型 · URA Range–Doppler–Angle</title>
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+    packages: { '[+]': ['color'] },
+    macros: {
+      PRI: ['T_{\\mathrm{PRI}}']
+    }
+  },
+  loader: { load: ['[tex]/color'] },
+  chtml: { displayAlign: 'left', displayIndent: '0' }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b16; --surface:#0f1830; --raise:#16243f;
+  --border:#1e2c49; --border2:#2a3c5e;
+  --text:#e7ecf7; --soft:#c3cce0; --muted:#8a97b6; --faint:#5d6b8c;
+  --range:#2fe0c0; --doppler:#f4b740; --angle:#b78cff; --az:#ff6fa5; --el:#4cc4ff;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --disp:'Space Grotesk','IBM Plex Sans',system-ui,sans-serif;
+  --maxw:884px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--text);font-family:var(--body);line-height:1.66;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 82% -10%, rgba(76,196,255,0.07), transparent 60%),
+    radial-gradient(1000px 520px at -5% 0%, rgba(183,140,255,0.06), transparent 55%),
+    var(--bg);}
+mjx-container{overflow-x:auto;overflow-y:hidden}
+mjx-container[display="true"]{margin:0 !important}
+
+/* topbar */
+.topbar{position:sticky;top:0;z-index:50;backdrop-filter:blur(11px);
+  background:linear-gradient(180deg, rgba(7,11,22,.92), rgba(7,11,22,.62));border-bottom:1px solid var(--border)}
+.topbar .row{max-width:1140px;margin:0 auto;padding:11px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-family:var(--disp);font-weight:700;letter-spacing:.01em;font-size:15px;display:flex;align-items:center;gap:9px}
+.brand .sig{color:var(--angle);font-size:18px}
+.conv{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);white-space:nowrap}
+.chip b{font-weight:500}
+.chip.az b{color:var(--az)} .chip.el b{color:var(--el)}
+
+/* hero */
+.hero{max-width:1140px;margin:0 auto;padding:58px 22px 6px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--faint)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(31px,5vw,54px);line-height:1.04;margin:14px 0 8px;letter-spacing:-.012em}
+.hero .sub{font-family:var(--mono);color:var(--muted);font-size:14px;margin-bottom:20px}
+.lead{max-width:780px;color:var(--soft);font-size:16.5px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin:22px 0 4px;font-family:var(--mono);font-size:12.5px}
+.legend span{display:inline-flex;align-items:center;gap:7px;color:var(--muted)}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+/* convention banner */
+.banner{max-width:1140px;margin:18px auto 0;padding:0 22px}
+.banner .inner{display:flex;gap:16px;flex-wrap:wrap;border:1px solid var(--border2);border-radius:16px;padding:16px 18px;
+  background:linear-gradient(120deg, rgba(183,140,255,.08), rgba(76,196,255,.05))}
+.def{flex:1;min-width:210px}
+.def .k{font-family:var(--mono);font-size:13.5px}
+.def .v{color:var(--muted);font-size:13px;margin-top:2px}
+.kazi{color:var(--az)} .kele{color:var(--el)}
+
+/* explorer */
+.explorer{max-width:1140px;margin:28px auto 6px;padding:0 22px}
+.ex-stage{display:grid;grid-template-columns:1.18fr .82fr;gap:16px}
+.ex-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px 12px 8px;position:relative;overflow:hidden}
+.ex-head{display:flex;align-items:center;justify-content:space-between;margin:2px 5px 4px}
+.ex-title{font-family:var(--mono);font-size:12px;color:var(--text);letter-spacing:.02em}
+.ex-hint,.ex-sub{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.ex-3d{cursor:grab} .ex-3d:active{cursor:grabbing}
+.ex-panel svg{width:100%;height:auto;display:block}
+.ex-controls{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:17px 20px}
+.ctrl{display:flex;flex-direction:column;gap:7px}
+.ctrl label{font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.ctrl label b{font-weight:500}
+.ctrl input[type=range]{width:100%;height:4px;border-radius:3px;background:var(--border2);outline:none;-webkit-appearance:none;appearance:none}
+.ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:currentColor;cursor:pointer;border:2px solid var(--surface)}
+.ctrl input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:currentColor;cursor:pointer;border:2px solid var(--surface)}
+.ctrl.az{color:var(--az)} .ctrl.el{color:var(--el)} .ctrl.an{color:var(--angle)}
+.presets{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.preset{font-family:var(--mono);font-size:11.5px;background:var(--raise);border:1px solid var(--border2);color:var(--muted);padding:6px 11px;border-radius:999px;cursor:pointer;transition:.15s}
+.preset:hover{color:var(--text);border-color:var(--angle)}
+.ex-readout{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:14px}
+.ro{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:9px 8px;text-align:center}
+.ro .lab{font-family:var(--mono);font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
+.ro .val{font-family:var(--mono);font-size:14px;margin-top:3px}
+.ro.az .val{color:var(--az)} .ro.el .val{color:var(--el)} .ro.ang .val{color:var(--angle)}
+.note{font-family:var(--mono);font-size:11.5px;color:var(--faint);text-align:center;margin-top:11px}
+.note b{color:var(--muted);font-weight:500}
+
+/* sections */
+main{max-width:var(--maxw);margin:0 auto;padding:42px 22px 0}
+.sec{padding:36px 0;border-top:1px solid var(--border)}
+.sec .num{font-family:var(--mono);font-size:12.5px;color:var(--angle);letter-spacing:.16em}
+.sec h2{font-family:var(--disp);font-weight:600;font-size:25px;margin:6px 0 2px;letter-spacing:-.01em}
+.sec h2 .en{color:var(--muted);font-weight:500;font-size:17px;font-family:var(--mono);margin-left:2px}
+.sec p{color:var(--soft);font-size:15.5px;margin:13px 0}
+.hl-r{color:var(--range);font-weight:500} .hl-d{color:var(--doppler);font-weight:500} .hl-a{color:var(--angle);font-weight:500}
+.hl-az{color:var(--az);font-weight:500} .hl-el{color:var(--el);font-weight:500}
+code.kbd{font-family:var(--mono);color:var(--text);background:var(--raise);padding:1px 7px;border-radius:6px;font-size:13px;white-space:nowrap}
+.eq{padding:4px 2px;margin:15px 0}
+.box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--angle);border-radius:12px;padding:4px 18px;margin:16px 0}
+.tags{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.tag{font-family:var(--mono);font-size:12.5px;padding:8px 13px;border-radius:11px;border:1px solid var(--border2);display:flex;gap:9px;align-items:center;background:var(--surface)}
+.tag.r{border-color:rgba(47,224,192,.5)} .tag.d{border-color:rgba(244,183,64,.5)} .tag.a{border-color:rgba(183,140,255,.5)}
+.tag i{width:9px;height:9px;border-radius:50%;flex:none}
+.tag.r i{background:var(--range)} .tag.d i{background:var(--doppler)} .tag.a i{background:var(--angle)}
+.tag b{font-weight:500} .tag span{color:var(--muted)}
+
+/* figure */
+figure{margin:20px 0 6px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:9px;text-align:center;line-height:1.5}
+.fig-head{display:flex;align-items:center;justify-content:space-between;margin:0 4px 8px}
+.fig-ctl{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px;margin:13px 4px 2px}
+.fig-ctl-row{display:flex;flex-direction:column;gap:6px}
+.fig-ctl-row label{font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.fig-ctl-row label b{font-weight:500}
+.fig-ctl-row.az{color:var(--az)} .fig-ctl-row.el{color:var(--el)}
+.fig-ctl-row input[type=range]{width:100%;height:4px;border-radius:3px;background:var(--border2);outline:none;-webkit-appearance:none;appearance:none}
+.fig-ctl-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:currentColor;cursor:pointer;border:2px solid var(--surface)}
+.fig-ctl-row input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:currentColor;cursor:pointer;border:2px solid var(--surface)}
+
+/* meaning list */
+.meaning{list-style:none;padding:0;margin:14px 0;display:grid;gap:9px}
+.meaning li{display:flex;gap:11px;align-items:baseline;font-size:14.5px;color:var(--soft)}
+
+footer{max-width:var(--maxw);margin:34px auto 64px;padding:26px 22px 0;border-top:1px solid var(--border);color:var(--faint);font-size:13px}
+footer .big{color:var(--soft);font-size:15.5px;margin-bottom:12px;line-height:1.6}
+
+@media (max-width:760px){
+  .ex-stage{grid-template-columns:1fr}
+  .ex-controls{grid-template-columns:1fr}
+  .ex-readout{grid-template-columns:repeat(3,1fr)}
+  .fig-ctl{grid-template-columns:1fr}
+  .topbar .conv{display:none}
+}
+:focus-visible{outline:2px solid var(--el);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+.reveal{opacity:0;transform:translateY(10px)}
+.reveal.in{opacity:1;transform:none;transition:opacity .55s ease, transform .55s ease}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="row">
+  <div class="brand"><span class="sig">∿</span> 2D Phased-Array Radar Model</div>
+  <div class="conv">
+    <span class="chip az">θ = azimuth <b>方位角</b></span>
+    <span class="chip el">φ = elevation <b>俯仰角</b></span>
+    <span class="chip">array ∈ x–y · boresight → <b>+z</b></span>
+  </div>
+</div></div>
+
+<header class="hero">
+  <div class="eyebrow">Uniform Rectangular Array · Range–Doppler–Angle</div>
+  <h1>二维相控阵雷达<br>信号模型</h1>
+  <div class="sub">URA · M_x × M_y · 从几何到 data cube 的完整推导</div>
+  <p class="lead">一个平面阵列(URA)放在 x–y 平面、boresight 指向 +z。下面把一个目标的<span class="hl-r">距离</span>、<span class="hl-d">速度</span>、<span class="hl-a">方位/俯仰</span>如何"印"到接收数据上一步步拆开。先用下面这个交互图建立几何直觉:拖动旋转视角,滑动 θ / φ 观察波束方向与阵元相位的变化。</p>
+  <div class="legend">
+    <span><i style="background:var(--range)"></i>Range 距离</span>
+    <span><i style="background:var(--doppler)"></i>Doppler 多普勒</span>
+    <span><i style="background:var(--angle)"></i>Angle 角度</span>
+    <span><i style="background:var(--az)"></i>azimuth θ</span>
+    <span><i style="background:var(--el)"></i>elevation φ</span>
+  </div>
+</header>
+
+<div class="banner"><div class="inner">
+  <div class="def"><div class="k kazi">θ = azimuth 方位角</div><div class="v">x–y 平面内,从 +x 轴量起。θ=0° → +x;θ=90° → +y。</div></div>
+  <div class="def"><div class="k kele">φ = elevation 俯仰角</div><div class="v">从阵列平面抬起。φ=0° → horizon(阵列平面);φ=90° → boresight(+z)。</div></div>
+  <div class="def"><div class="k">几何 geometry</div><div class="v">阵列分布在 x–y 平面,所以空间相位只与 u 在该平面上的投影有关。</div></div>
+</div></div>
+
+<section class="explorer" aria-label="交互几何">
+  <div class="ex-stage">
+    <div class="ex-panel ex-3d">
+      <div class="ex-head"><span class="ex-title">阵列几何 · array geometry</span><span class="ex-hint">拖动旋转 · drag to rotate</span></div>
+      <svg id="scene" viewBox="0 0 480 460" role="img" aria-label="三维阵列几何示意"></svg>
+    </div>
+    <div class="ex-panel ex-grid">
+      <div class="ex-head"><span class="ex-title">阵元相位 · element phase</span><span class="ex-sub">d = λ/2</span></div>
+      <svg id="phase" viewBox="0 0 360 360" role="img" aria-label="阵元相位热力图"></svg>
+    </div>
+  </div>
+
+  <div class="ex-controls">
+    <div class="ctrl az"><label for="sTheta">azimuth θ <b id="valTheta">35°</b></label><input id="sTheta" type="range" min="-180" max="180" step="1" value="35" aria-label="azimuth theta"></div>
+    <div class="ctrl el"><label for="sPhi">elevation φ <b id="valPhi">42°</b></label><input id="sPhi" type="range" min="0" max="90" step="1" value="42" aria-label="elevation phi"></div>
+    <div class="ctrl an"><label for="sMx">M_x (x 阵元数) <b id="valMx">8</b></label><input id="sMx" type="range" min="2" max="12" step="1" value="8" aria-label="Mx"></div>
+    <div class="ctrl an"><label for="sMy">M_y (y 阵元数) <b id="valMy">6</b></label><input id="sMy" type="range" min="2" max="12" step="1" value="6" aria-label="My"></div>
+    <div class="presets">
+      <button class="preset" data-phi="90">boresight φ=90°</button>
+      <button class="preset" data-phi="0">horizon φ=0°</button>
+      <button class="preset" data-theta="0">θ=0° (+x)</button>
+      <button class="preset" data-theta="90">θ=90° (+y)</button>
+      <button class="preset" data-theta="45" data-phi="30">θ=45°, φ=30°</button>
+    </div>
+  </div>
+
+  <div class="ex-readout">
+    <div class="ro az"><div class="lab">θ</div><div class="val" id="roTheta">35°</div></div>
+    <div class="ro el"><div class="lab">φ</div><div class="val" id="roPhi">42°</div></div>
+    <div class="ro ang"><div class="lab">ξ = cosφcosθ</div><div class="val" id="roXi">0.609</div></div>
+    <div class="ro ang"><div class="lab">η = cosφsinθ</div><div class="val" id="roEta">0.426</div></div>
+    <div class="ro el"><div class="lab">cosφ = |u_xy|</div><div class="val" id="roCos">0.743</div></div>
+    <div class="ro ang"><div class="lab">ω_x (rad)</div><div class="val" id="roWx">1.914</div></div>
+    <div class="ro ang"><div class="lab">ω_y (rad)</div><div class="val" id="roWy">1.338</div></div>
+  </div>
+  <div class="note">试试:<b>φ → 90°(boresight)</b> 时 ξ=η=0,全阵同相,相位图变成一片纯色;<b>φ → 0°(horizon)</b> 时相位坡度最陡。</div>
+</section>
+
+<main>
+
+  <section class="sec">
+    <div class="num">01</div>
+    <h2>阵列几何 <span class="en">array geometry</span></h2>
+    <p>考虑一个 M_x × M_y 的 uniform rectangular array(URA)。第 (m, n) 个阵元的位置为:</p>
+    <div class="eq">$$\mathbf{r}_{m,n}=\begin{bmatrix} m\,d_x \\ n\,d_y \\ 0 \end{bmatrix},\qquad m=0,\dots,M_x-1,\quad n=0,\dots,M_y-1.$$</div>
+    <p>目标方向由 azimuth <span class="hl-az">θ</span> 与 elevation <span class="hl-el">φ</span> 描述,对应的方向单位向量为:</p>
+    <div class="eq">$$\mathbf{u}(\theta,\phi)=\begin{bmatrix} \textcolor{#4CC4FF}{\cos\phi}\,\textcolor{#FF6FA5}{\cos\theta} \\[2pt] \textcolor{#4CC4FF}{\cos\phi}\,\textcolor{#FF6FA5}{\sin\theta} \\[2pt] \textcolor{#4CC4FF}{\sin\phi} \end{bmatrix}.$$</div>
+    <ul class="meaning">
+      <li><code class="kbd">θ = 0</code> 目标在 +x 方向的竖直平面内。</li>
+      <li><code class="kbd">θ = 90°</code> 目标在 +y 方向的竖直平面内。</li>
+      <li><code class="kbd">φ = 0</code> 目标在阵列平面方向,即 horizon。</li>
+      <li><code class="kbd">φ = 90°</code> 目标正对 boresight,即 +z 方向。</li>
+    </ul>
+    <p>上方交互图就是这套几何:<span class="hl-az">θ</span> 是 x–y 平面里的粉色弧,<span class="hl-el">φ</span> 是抬起的青色弧,紫色箭头是 u。</p>
+  </section>
+
+  <section class="sec">
+    <div class="num">02</div>
+    <h2>方向余弦 <span class="en">direction cosines</span></h2>
+    <p>定义两个 direction cosines —— 它们正是 u 在阵列平面上的两个投影分量:</p>
+    <div class="eq">$$\xi=\textcolor{#4CC4FF}{\cos\phi}\,\textcolor{#FF6FA5}{\cos\theta},\qquad \eta=\textcolor{#4CC4FF}{\cos\phi}\,\textcolor{#FF6FA5}{\sin\theta}.$$</div>
+    <p>因为阵列只分布在 x–y 平面,空间相位只取决于 u 的平面投影。第 (m, n) 个阵元相对参考阵元的 path difference 为:</p>
+    <div class="eq">$$\mathbf{r}_{m,n}^{\mathsf T}\mathbf{u}=m\,d_x\,\textcolor{#4CC4FF}{\cos\phi}\textcolor{#FF6FA5}{\cos\theta}+n\,d_y\,\textcolor{#4CC4FF}{\cos\phi}\textcolor{#FF6FA5}{\sin\theta}=m\,d_x\,\xi+n\,d_y\,\eta.$$</div>
+    <p>因此 steering response(单个阵元的相位)为:</p>
+    <div class="eq">$$a_{m,n}(\theta,\phi)=\exp\!\left[\,j\frac{2\pi}{\lambda}\big(m\,d_x\,\xi+n\,d_y\,\eta\big)\right].$$</div>
+    <figure>
+      <div class="fig-head"><span class="ex-title">交互 · 拖动旋转,调 θ / φ</span><span class="ex-hint">drag to rotate</span></div>
+      <svg id="dgCos" class="ex-3d" viewBox="0 0 440 380" role="img" aria-label="方向余弦分解示意(可交互)"></svg>
+      <div class="fig-ctl">
+        <div class="fig-ctl-row az"><label for="cosTheta">azimuth θ <b id="cosValTheta">42°</b></label><input id="cosTheta" type="range" min="-180" max="180" step="1" value="42" aria-label="cosine azimuth"></div>
+        <div class="fig-ctl-row el"><label for="cosPhi">elevation φ <b id="cosValPhi">32°</b></label><input id="cosPhi" type="range" min="0" max="90" step="1" value="32" aria-label="cosine elevation"></div>
+      </div>
+      <figcaption>单位向量 u 分解:平面投影长度 = cosφ(青),竖直分量 = sinφ(青);投影再拆成 ξ、η 两个坐标分量(紫)。阵列"看到"的只有 ξ 和 η。<br>把 φ 调到接近 90°,投影 (ξ, η) 会缩成一个点——说明正对 boresight 时阵列几乎分不出方向。</figcaption>
+    </figure>
+  </section>
+
+  <section class="sec">
+    <div class="num">03</div>
+    <h2>二维 steering vector <span class="en">Kronecker product</span></h2>
+    <p>因为相位在 x、y 两个方向上是各自线性叠加的,沿 x、沿 y 的 steering vector 分别为:</p>
+    <div class="eq">$$\mathbf{a}_x=\begin{bmatrix}1\\ e^{j\frac{2\pi}{\lambda}d_x\xi}\\ \vdots\\ e^{j\frac{2\pi}{\lambda}(M_x-1)d_x\xi}\end{bmatrix},\qquad \mathbf{a}_y=\begin{bmatrix}1\\ e^{j\frac{2\pi}{\lambda}d_y\eta}\\ \vdots\\ e^{j\frac{2\pi}{\lambda}(M_y-1)d_y\eta}\end{bmatrix}.$$</div>
+    <p>整个 URA 的 steering vector 因此可写成 Kronecker product:</p>
+    <div class="eq">$$\mathbf{a}(\theta,\phi)=\mathbf{a}_y(\theta,\phi)\otimes\mathbf{a}_x(\theta,\phi).$$</div>
+    <p>stack 顺序取决于如何把二维阵列 reshape 成一维向量:先 stack x 再 stack y 就用这个形式;顺序反过来,Kronecker 的顺序也要跟着反。</p>
+    <figure>
+      <svg id="dgKron" viewBox="0 0 470 290" role="img" aria-label="Kronecker 可分离相位示意"></svg>
+      <figcaption>可分离结构:阵元 (m,n) 的总相位 = 行相位 a_x(m) + 列相位 a_y(n)。所以二维 steering vector 是两个一维 steering vector 的外积(Kronecker)。</figcaption>
+    </figure>
+  </section>
+
+  <section class="sec">
+    <div class="num">04</div>
+    <h2>单目标接收信号 <span class="en">continuous-time</span></h2>
+    <p>雷达发射 baseband waveform s(t),载频 f_c,波长 \(\lambda = c/f_c\)。一个目标的参数是 \((R, v, \theta, \phi, \alpha)\),其中:</p>
+    <div class="eq">$$\tau=\frac{2R}{c}\ \text{(round-trip delay)},\qquad f_D=\frac{2v}{\lambda}\ \text{(Doppler)},\qquad t_p=p\,\PRI.$$</div>
+    <p>那么第 (m, n) 个阵元、第 p 个 pulse 上的 baseband echo 为:</p>
+    <div class="eq">$$x_{m,n,p}(t)=\alpha\,\textcolor{#2FE0C0}{s(t-\tau)}\;\textcolor{#F4B740}{e^{\,j2\pi f_D\,p\PRI}}\;\textcolor{#B78CFF}{e^{\,j\frac{2\pi}{\lambda}\left(m d_x\cos\phi\cos\theta+n d_y\cos\phi\sin\theta\right)}}+w_{m,n,p}(t).$$</div>
+    <p>这就是最核心的二维相控阵模型 —— 一个目标在数据里同时留下三类相位结构:</p>
+    <div class="tags">
+      <span class="tag r"><i></i><b>s(t − τ)</b><span>→ range 距离</span></span>
+      <span class="tag d"><i></i><b>e^( j2π f_D p T )</b><span>→ Doppler 速度</span></span>
+      <span class="tag a"><i></i><b>e^( j·φ(m,n) )</b><span>→ 2D angle 角度</span></span>
+    </div>
+    <figure>
+      <svg id="dgPhase4" viewBox="0 0 620 330" role="img" aria-label="三类相位结构示意"></svg>
+      <figcaption>三类结构各管一件事:<span class="hl-r">距离</span>=回波在快时间上的延时 τ;<span class="hl-d">Doppler</span>=脉冲之间逐拍累积的相位旋转;<span class="hl-a">角度</span>=阵元之间的线性相位坡度。</figcaption>
+    </figure>
+  </section>
+
+  <section class="sec">
+    <div class="num">05</div>
+    <h2>多目标模型 <span class="en">multi-target</span></h2>
+    <p>多目标只是线性叠加。对 Q 个目标:</p>
+    <div class="eq">$$x_{m,n,p}(t)=\sum_{q=1}^{Q}\alpha_q\,\textcolor{#2FE0C0}{s(t-\tau_q)}\;\textcolor{#F4B740}{e^{j2\pi f_{D,q}p\PRI}}\;\textcolor{#B78CFF}{e^{j\frac{2\pi}{\lambda}\left(m d_x\cos\phi_q\cos\theta_q+n d_y\cos\phi_q\sin\theta_q\right)}}+w_{m,n,p}(t),$$</div>
+    <div class="eq">$$\tau_q=\frac{2R_q}{c},\qquad f_{D,q}=\frac{2v_q}{\lambda},\qquad \xi_q=\cos\phi_q\cos\theta_q,\qquad \eta_q=\cos\phi_q\sin\theta_q.$$</div>
+  </section>
+
+  <section class="sec">
+    <div class="num">06</div>
+    <h2>匹配滤波后的离散模型 <span class="en">matched filter + range sampling</span></h2>
+    <p>经过 matched filtering 与 range sampling,令 range bin index 为 k:</p>
+    <div class="eq">$$x_{m,n,p,k}=\sum_{q=1}^{Q}\alpha_q\,\textcolor{#2FE0C0}{h[k-k_q]}\;\textcolor{#F4B740}{e^{j2\pi f_{D,q}p\PRI}}\;\textcolor{#B78CFF}{e^{j\frac{2\pi}{\lambda}\left(m d_x\cos\phi_q\cos\theta_q+n d_y\cos\phi_q\sin\theta_q\right)}}+w_{m,n,p,k}.$$</div>
+    <p>这里 <span class="hl-r">h[k − k_q]</span> 是 range matched-filter response,目标对应的 range bin 为:</p>
+    <div class="eq">$$k_q\approx\frac{\tau_q}{T_s}=\frac{2R_q}{c\,T_s}.$$</div>
+    <p>如果目标刚好落在某个 bin,可简化为(\(\mathcal{Q}_k\) 是落在第 k 个 bin 的目标集合):</p>
+    <div class="eq">$$x_{m,n,p,k}=\sum_{q\in\mathcal{Q}_k}\alpha_q\,\textcolor{#F4B740}{e^{j2\pi f_{D,q}p\PRI}}\;\textcolor{#B78CFF}{e^{j\frac{2\pi}{\lambda}(\cdots)}}+w_{m,n,p,k}.$$</div>
+    <figure>
+      <svg id="dgRange" viewBox="0 0 600 240" role="img" aria-label="range bin 与匹配滤波响应示意"></svg>
+      <figcaption>距离被离散成 range bin。匹配滤波响应 |h[k − k_q]| 的主瓣峰值落在 k_q ≈ 2R_q/(c T_s)。</figcaption>
+    </figure>
+  </section>
+
+  <section class="sec">
+    <div class="num">07</div>
+    <h2>向量形式 <span class="en">stack the array</span></h2>
+    <p>把所有阵元堆成一个向量 \(\mathbf{x}_{p,k}\in\mathbb{C}^{M_xM_y}\),模型变成 steering vector 的加权和:</p>
+    <div class="eq">$$\mathbf{x}_{p,k}=\sum_{q=1}^{Q}\alpha_q\,\textcolor{#2FE0C0}{h[k-k_q]}\;\textcolor{#F4B740}{e^{j2\pi f_{D,q}p\PRI}}\;\textcolor{#B78CFF}{\mathbf{a}(\theta_q,\phi_q)}+\mathbf{w}_{p,k},$$</div>
+    <p>其中 \(\textcolor{#B78CFF}{\mathbf{a}(\theta_q,\phi_q)}\) 就是第 03 节那个二维 URA steering vector。</p>
+  </section>
+
+  <section class="sec">
+    <div class="num">08</div>
+    <h2>空时模型 <span class="en">space-time, rank-1</span></h2>
+    <p>再定义 Doppler steering vector(沿脉冲方向):</p>
+    <div class="eq">$$\mathbf{b}(f_D)=\begin{bmatrix}1\\ e^{j2\pi f_D\PRI}\\ \vdots\\ e^{j2\pi f_D(P-1)\PRI}\end{bmatrix}.$$</div>
+    <p>把所有 pulses 也堆起来,某个 range bin 内的数据矩阵为:</p>
+    <div class="eq">$$\mathbf{X}_k=\sum_{q=1}^{Q}\alpha_q\,\textcolor{#2FE0C0}{h[k-k_q]}\;\textcolor{#B78CFF}{\mathbf{a}(\theta_q,\phi_q)}\,\textcolor{#F4B740}{\mathbf{b}^{\mathsf T}(f_{D,q})}+\mathbf{W}_k.$$</div>
+    <p>所以每个 point target 在一个 range bin 里,就对应一个 <strong>rank-1</strong> 的空时分量 —— 角度 steering vector 与 Doppler steering vector 的外积:</p>
+    <div class="box"><div class="eq">$$\textcolor{#B78CFF}{\mathbf{a}(\theta_q,\phi_q)}\;\textcolor{#F4B740}{\mathbf{b}^{\mathsf T}(f_{D,q})}.$$</div></div>
+    <figure>
+      <svg id="dgRank" viewBox="0 0 520 300" role="img" aria-label="rank-1 外积示意"></svg>
+      <figcaption>左侧竖条是角度向量 a(θ,φ),上方横条是 Doppler 向量 bᵀ(f_D);矩阵中每格的相位 = 两者相位之和。一个目标 = 一个 rank-1 外积。</figcaption>
+    </figure>
+  </section>
+
+  <section class="sec">
+    <div class="num">09</div>
+    <h2>加入发射波束赋形 <span class="en">transmit beamforming</span></h2>
+    <p>若发射端也用二维相控阵,并采用发射 beamforming 向量 \(\mathbf{w}_T\),则目标方向上的发射增益为:</p>
+    <div class="eq">$$G_T(\theta,\phi)=\mathbf{w}_T^{\mathsf H}\,\mathbf{a}_T(\theta,\phi).$$</div>
+    <p>接收模型只是给每个目标再乘上这个发射增益:</p>
+    <div class="eq">$$\mathbf{x}_{p,k}=\sum_{q=1}^{Q}\alpha_q\,G_T(\theta_q,\phi_q)\,\textcolor{#2FE0C0}{h[k-k_q]}\;\textcolor{#F4B740}{e^{j2\pi f_{D,q}p\PRI}}\;\textcolor{#B78CFF}{\mathbf{a}_R(\theta_q,\phi_q)}+\mathbf{w}_{p,k}.$$</div>
+    <p>这里 \(\mathbf{a}_T\) 是 transmit steering vector,\(\mathbf{a}_R\) 是 receive steering vector。若收发共用同一个 URA,则通常:</p>
+    <div class="eq">$$\mathbf{a}_T(\theta,\phi)=\mathbf{a}_R(\theta,\phi)=\mathbf{a}(\theta,\phi).$$</div>
+  </section>
+
+  <section class="sec">
+    <div class="num">10</div>
+    <h2>张量数据立方体 <span class="en">tensor data cube</span></h2>
+    <p>完整的 radar data cube 是一个四维张量 x[m, n, p, k]:</p>
+    <div class="eq">$$x[m,n,p,k]=\sum_{q=1}^{Q}\alpha_q\,\textcolor{#2FE0C0}{h[k-k_q]}\;\textcolor{#F4B740}{e^{j2\pi f_{D,q}p\PRI}}\;\textcolor{#B78CFF}{e^{j\frac{2\pi}{\lambda}\left(m d_x\cos\phi_q\cos\theta_q+n d_y\cos\phi_q\sin\theta_q\right)}}+w[m,n,p,k].$$</div>
+    <ul class="meaning">
+      <li><code class="kbd">m</code> x-array index</li>
+      <li><code class="kbd">n</code> y-array index</li>
+      <li><code class="kbd">p</code> pulse / slow-time index</li>
+      <li><code class="kbd">k</code> range-bin index</li>
+    </ul>
+    <figure>
+      <svg id="dgCube" viewBox="0 0 560 360" role="img" aria-label="数据立方:fast-time × slow-time × channel"></svg>
+      <figcaption>数据立方:<span class="hl-r">x = fast-time</span>(range bin k)、<span class="hl-d">y = slow-time</span>(脉冲 p)、<span class="hl-a">z(垂直)= channel</span>(阵元 m,n,共 M_x·M_y 个通道)。顶面是一张 range–Doppler 图,沿 z 叠起所有通道。</figcaption>
+    </figure>
+    <p>要估计的目标参数是 \((R_q,\ v_q,\ \textcolor{#FF6FA5}{\theta_q},\ \textcolor{#4CC4FF}{\phi_q},\ \alpha_q)\) —— 即 range、radial velocity、azimuth、elevation、complex reflectivity。</p>
+    <p>一个很重要的直觉:URA 本质上测的是两个 <strong>spatial frequencies</strong>:</p>
+    <div class="eq">$$\omega_x=\frac{2\pi d_x}{\lambda}\cos\phi\cos\theta,\qquad \omega_y=\frac{2\pi d_y}{\lambda}\cos\phi\sin\theta.$$</div>
+    <p>从它们就能反推 azimuth / elevation:</p>
+    <div class="eq">$$\textcolor{#FF6FA5}{\theta}=\operatorname{atan2}\!\big(\omega_y/d_y,\ \omega_x/d_x\big),\qquad \textcolor{#4CC4FF}{\cos\phi}=\sqrt{\left(\frac{\lambda\,\omega_x}{2\pi d_x}\right)^{2}+\left(\frac{\lambda\,\omega_y}{2\pi d_y}\right)^{2}}.$$</div>
+    <figure>
+      <svg id="dgFreq" viewBox="0 0 360 320" role="img" aria-label="空间频率反解角度示意"></svg>
+      <figcaption>在 (ω_x, ω_y) 平面里,测到的向量方向给出 θ(atan2,粉),向量模长给出 cosφ(青)。</figcaption>
+    </figure>
+    <p>所以二维相控阵,本质上是在估计目标方向向量在阵列平面上的投影。</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="big">一句话总结:一个点目标 = (range bin 上的 <span class="hl-r">h[k−k_q]</span>) × (脉冲方向的 <span class="hl-d">Doppler 相位</span>) × (阵元平面上的 <span class="hl-a">二维线性相位</span>) —— 在空时上是 rank-1,在角域上测两个空间频率反解方位/俯仰。</div>
+  约定:θ = azimuth(方位角),φ = elevation(俯仰角);阵列在 x–y 平面,boresight 指向 +z。示意图与公式中的配色一一对应。
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // ---------- shared constants ----------
+  const CO = {
+    range: '#2fe0c0', doppler: '#f4b740', angle: '#b78cff', az: '#ff6fa5', el: '#4cc4ff',
+    axis2: '#8a97b6', grid: '#27375a', dot: '#9fb0d4', arrow: '#cdb8ff',
+    text: '#e7ecf7', muted: '#8a97b6', faint: '#5d6b8c', line: '#33486f'
+  };
+  const F = "'IBM Plex Mono', ui-monospace, monospace";
+  const PI = Math.PI, TAU = 2 * PI, D = 0.5;
+
+  // ---------- svg helpers ----------
+  const fmt = (v, d) => { d = d == null ? 3 : d; const x = Math.abs(v) < 5e-4 ? 0 : v; return x.toFixed(d); };
+  const tx = (x, y, s, col, size, anchor, weight) =>
+    `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" fill="${col}" font-size="${size}" font-family="${F}" text-anchor="${anchor || 'middle'}" dominant-baseline="middle"${weight ? ` font-weight="${weight}"` : ''}>${s}</text>`;
+  const ln = (x1, y1, x2, y2, col, w, dash) =>
+    `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${col}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/>`;
+  function head2(x1, y1, x2, y2, col, size) {
+    const a = Math.atan2(y2 - y1, x2 - x1), w = size * 0.5;
+    const bx = x2 - size * Math.cos(a), by = y2 - size * Math.sin(a);
+    const px = Math.cos(a + PI / 2), py = Math.sin(a + PI / 2);
+    return `<polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(bx + w * px).toFixed(1)},${(by + w * py).toFixed(1)} ${(bx - w * px).toFixed(1)},${(by - w * py).toFixed(1)}" fill="${col}"/>`;
+  }
+  const arrow2 = (x1, y1, x2, y2, col, w, dash, hs) => ln(x1, y1, x2, y2, col, w, dash) + head2(x1, y1, x2, y2, col, hs || 8);
+  const circle = (x, y, r, fill, stroke, sw) =>
+    `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${fill || 'none'}"${stroke ? ` stroke="${stroke}" stroke-width="${sw || 1}"` : ''}/>`;
+  function phaseColor(p) { let t = ((p % TAU) + TAU) % TAU; return `hsl(${(t / TAU * 360).toFixed(0)},72%,60%)`; }
+
+  // orthographic camera: va=yaw about world-z, ve=elevation. world up = +z.
+  function rot(p, view) {
+    const ca = Math.cos(view.va), sa = Math.sin(view.va), ce = Math.cos(view.ve), se = Math.sin(view.ve);
+    const fx = -ce * ca, fy = -ce * sa, fz = -se;          // forward (cam -> origin)
+    let rx = fy, ry = -fx; const rl = Math.hypot(rx, ry) || 1; rx /= rl; ry /= rl; const rz = 0;
+    const ux = ry * fz - rz * fy, uy = rz * fx - rx * fz, uz = rx * fy - ry * fx; // up = right x forward
+    return { x: p.x * rx + p.y * ry + p.z * rz, y: p.x * ux + p.y * uy + p.z * uz };
+  }
+
+  // ---------- hero: 3D array geometry ----------
+  function buildScene(o) {
+    const W = o.W, H = o.H, view = o.view, Mx = o.Mx, My = o.My;
+    const th = o.theta * PI / 180, ph = o.phi * PI / 180;
+    const u = { x: Math.cos(ph) * Math.cos(th), y: Math.cos(ph) * Math.sin(th), z: Math.sin(ph) };
+    const spanX = (Mx - 1) * D, spanY = (My - 1) * D, maxSpan = Math.max(spanX, spanY, 0.5);
+    const L = 1.18 * maxSpan + 1.35, axisLen = L * 0.99, arcR = Math.max(0.5, Math.min(0.95, L * 0.26));
+    const C = { x: spanX / 2, y: spanY / 2, z: 0 };
+    const A = { x: L * u.x, y: L * u.y, z: L * u.z };
+    const Pp = { x: L * u.x, y: L * u.y, z: 0 };
+    const anchors = [{ x: 0, y: 0, z: 0 }, A, Pp, { x: axisLen, y: 0, z: 0 }, { x: 0, y: axisLen, z: 0 }, { x: 0, y: 0, z: axisLen }, { x: spanX, y: 0, z: 0 }, { x: 0, y: spanY, z: 0 }, { x: spanX, y: spanY, z: 0 }];
+    let Lext = 0.001; anchors.forEach(p => { Lext = Math.max(Lext, Math.hypot(p.x - C.x, p.y - C.y, p.z - C.z)); });
+    const PAD = 40, scale = (Math.min(W, H) / 2 - PAD) / Lext, cx = W / 2, cy = H / 2;
+    const S = P => { const s = rot({ x: P.x - C.x, y: P.y - C.y, z: P.z - C.z }, view); return { x: cx + s.x * scale, y: cy - s.y * scale }; };
+    const A3 = (p1, p2, col, w, dash, hs) => { const a = S(p1), b = S(p2); return arrow2(a.x, a.y, b.x, b.y, col, w, dash, hs); };
+    const L3 = (p1, p2, col, w, dash) => { const a = S(p1), b = S(p2); return ln(a.x, a.y, b.x, b.y, col, w, dash); };
+    let s = '';
+    s += `<defs><filter id="gl" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+    // x-y plane (array plane / horizon)
+    const pc = [{ x: -0.6, y: -0.6, z: 0 }, { x: spanX + 0.6, y: -0.6, z: 0 }, { x: spanX + 0.6, y: spanY + 0.6, z: 0 }, { x: -0.6, y: spanY + 0.6, z: 0 }].map(S);
+    s += `<polygon points="${pc.map(p => p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ')}" fill="rgba(76,196,255,0.045)" stroke="rgba(76,196,255,0.16)" stroke-width="1"/>`;
+    // grid lines
+    for (let n = 0; n < My; n++) s += L3({ x: 0, y: n * D, z: 0 }, { x: spanX, y: n * D, z: 0 }, CO.grid, 1);
+    for (let m = 0; m < Mx; m++) s += L3({ x: m * D, y: 0, z: 0 }, { x: m * D, y: spanY, z: 0 }, CO.grid, 1);
+    // axes
+    s += A3({ x: 0, y: 0, z: 0 }, { x: axisLen, y: 0, z: 0 }, CO.faint, 1.6, null, 7);
+    s += A3({ x: 0, y: 0, z: 0 }, { x: 0, y: axisLen, z: 0 }, CO.faint, 1.6, null, 7);
+    s += A3({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: axisLen }, CO.axis2, 1.8, null, 8);
+    // azimuth arc (pink)
+    { let pts = []; const N = Math.max(2, Math.round(Math.abs(o.theta) / 4) + 2); for (let i = 0; i <= N; i++) { const b = th * i / N; const P = S({ x: arcR * Math.cos(b), y: arcR * Math.sin(b), z: 0 }); pts.push(P.x.toFixed(1) + ',' + P.y.toFixed(1)); } s += `<polyline points="${pts.join(' ')}" fill="none" stroke="${CO.az}" stroke-width="2"/>`; const lb = S({ x: arcR * 1.24 * Math.cos(th / 2), y: arcR * 1.24 * Math.sin(th / 2), z: 0 }); s += tx(lb.x, lb.y, 'θ', CO.az, 15, 'middle', 600); }
+    // elevation arc (cyan)
+    { let pts = []; const N = Math.max(2, Math.round(Math.abs(o.phi) / 4) + 2); for (let i = 0; i <= N; i++) { const a = ph * i / N; const P = S({ x: arcR * Math.cos(a) * Math.cos(th), y: arcR * Math.cos(a) * Math.sin(th), z: arcR * Math.sin(a) }); pts.push(P.x.toFixed(1) + ',' + P.y.toFixed(1)); } s += `<polyline points="${pts.join(' ')}" fill="none" stroke="${CO.el}" stroke-width="2"/>`; const am = ph / 2; const lb = S({ x: arcR * 1.26 * Math.cos(am) * Math.cos(th), y: arcR * 1.26 * Math.cos(am) * Math.sin(th), z: arcR * 1.26 * Math.sin(am) }); s += tx(lb.x, lb.y, 'φ', CO.el, 15, 'middle', 600); }
+    // array dots
+    for (let n = 0; n < My; n++) for (let m = 0; m < Mx; m++) { const P = S({ x: m * D, y: n * D, z: 0 }); const ref = (m === 0 && n === 0); s += circle(P.x, P.y, ref ? 4.2 : 2.7, ref ? CO.angle : CO.dot, ref ? '#fff' : null, ref ? 1.2 : 0); }
+    // projection
+    s += L3({ x: 0, y: 0, z: 0 }, Pp, CO.muted, 1.4, '4 4');
+    s += L3(Pp, A, CO.muted, 1.4, '4 4');
+    { const pp = S(Pp); s += circle(pp.x, pp.y, 2.4, CO.muted); }
+    // u arrow (glow)
+    { const a = S({ x: 0, y: 0, z: 0 }), b = S(A); s += `<g filter="url(#gl)">` + arrow2(a.x, a.y, b.x, b.y, CO.arrow, 3, null, 11) + `</g>`; }
+    // labels
+    { const xl = S({ x: axisLen * 1.07, y: 0, z: 0 }); s += tx(xl.x, xl.y, 'x', CO.axis2, 13, 'middle', 600); }
+    { const yl = S({ x: 0, y: axisLen * 1.07, z: 0 }); s += tx(yl.x, yl.y, 'y', CO.axis2, 13, 'middle', 600); }
+    { const zl = S({ x: 0, y: 0, z: axisLen * 1.08 }); s += tx(zl.x, zl.y, 'z', CO.text, 13, 'middle', 600); s += tx(zl.x, zl.y + 14, 'boresight', CO.faint, 9.5, 'middle'); }
+    { const ul = S(A); const right = A.x >= C.x; s += tx(ul.x + (right ? 14 : -14), ul.y - 10, 'u(θ,φ)', CO.arrow, 12, right ? 'start' : 'end', 600); }
+    return s;
+  }
+
+  // ---------- hero: element-phase heatmap ----------
+  function buildPhaseGrid(theta, phi, Mx, My) {
+    const th = theta * PI / 180, ph = phi * PI / 180, xi = Math.cos(ph) * Math.cos(th), eta = Math.cos(ph) * Math.sin(th);
+    const W = 360, H = 360, pad = 32, top = 16, legendH = 22, gap = 14;
+    const gridTop = top + 10;
+    const gw = W - 2 * pad, gh = H - gridTop - pad - legendH - gap - 10;
+    const cw = gw / Mx, chh = gh / My;
+    let s = '';
+    for (let n = 0; n < My; n++) for (let m = 0; m < Mx; m++) {
+      const x = pad + m * cw, y = gridTop + (My - 1 - n) * chh;
+      s += `<rect x="${(x + 1).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${(cw - 2).toFixed(1)}" height="${(chh - 2).toFixed(1)}" rx="2" fill="${phaseColor(PI * (m * xi + n * eta))}"/>`;
+    }
+    s += tx(pad + gw / 2, gridTop + gh + 14, 'm  →   (' + Mx + ')', CO.muted, 11, 'middle');
+    s += `<g transform="translate(${pad - 16},${gridTop + gh / 2}) rotate(-90)">` + tx(0, 0, 'n  →   (' + My + ')', CO.muted, 11, 'middle') + `</g>`;
+    const ly = gridTop + gh + 24, lsegs = 48, lw = gw / lsegs;
+    for (let i = 0; i < lsegs; i++) { s += `<rect x="${(pad + i * lw).toFixed(1)}" y="${ly}" width="${(lw + 0.6).toFixed(1)}" height="${legendH - 8}" fill="${phaseColor((i + 0.5) / lsegs * TAU)}"/>`; }
+    s += `<rect x="${pad}" y="${ly}" width="${gw}" height="${legendH - 8}" fill="none" stroke="${CO.line}" stroke-width="1" rx="2"/>`;
+    s += tx(pad, ly + legendH + 1, '0', CO.muted, 10, 'start');
+    s += tx(pad + gw / 2, ly + legendH + 1, 'π', CO.muted, 10, 'middle');
+    s += tx(pad + gw, ly + legendH + 1, '2π', CO.muted, 10, 'end');
+    s += tx(pad + gw, top, 'phase ∝ m·ξ + n·η', CO.faint, 10, 'end');
+    return s;
+  }
+
+  // ---------- §2 direction-cosine decomposition ----------
+  function buildCosine(o) {
+    const W = 440, H = 380, view = o.view, th = o.theta * PI / 180, ph = o.phi * PI / 180;
+    const u = { x: Math.cos(ph) * Math.cos(th), y: Math.cos(ph) * Math.sin(th), z: Math.sin(ph) };
+    const xi = u.x, eta = u.y, sp = u.z, axisLen = 1.25;
+    const pts = [{ x: 0, y: 0, z: 0 }, u, { x: xi, y: eta, z: 0 }, { x: axisLen, y: 0, z: 0 }, { x: 0, y: axisLen, z: 0 }, { x: 0, y: 0, z: axisLen }, { x: xi, y: 0, z: 0 }, { x: 0, y: eta, z: 0 }];
+    const C = { x: 0.35, y: 0.35, z: 0.25 };
+    let Lext = 0.001; pts.forEach(p => { Lext = Math.max(Lext, Math.hypot(p.x - C.x, p.y - C.y, p.z - C.z)); });
+    const PAD = 50, scale = (Math.min(W, H) / 2 - PAD) / Lext, cx = W / 2, cy = H / 2 + 12;
+    const S = P => { const s = rot({ x: P.x - C.x, y: P.y - C.y, z: P.z - C.z }, view); return { x: cx + s.x * scale, y: cy - s.y * scale }; };
+    const A3 = (p1, p2, col, w, dash, hs) => { const a = S(p1), b = S(p2); return arrow2(a.x, a.y, b.x, b.y, col, w, dash, hs); };
+    const L3 = (p1, p2, col, w, dash) => { const a = S(p1), b = S(p2); return ln(a.x, a.y, b.x, b.y, col, w, dash); };
+    let s = '';
+    s += A3({ x: 0, y: 0, z: 0 }, { x: axisLen, y: 0, z: 0 }, CO.faint, 1.6, null, 7);
+    s += A3({ x: 0, y: 0, z: 0 }, { x: 0, y: axisLen, z: 0 }, CO.faint, 1.6, null, 7);
+    s += A3({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: axisLen }, CO.axis2, 1.6, null, 7);
+    s += L3({ x: 0, y: 0, z: 0 }, { x: xi, y: eta, z: 0 }, CO.el, 1.8, '5 4');   // cos(phi) projection
+    s += L3({ x: xi, y: eta, z: 0 }, u, CO.el, 1.6, '4 4');                       // sin(phi) lift
+    s += L3({ x: xi, y: eta, z: 0 }, { x: xi, y: 0, z: 0 }, CO.angle, 1.4, '3 3');
+    s += L3({ x: xi, y: eta, z: 0 }, { x: 0, y: eta, z: 0 }, CO.angle, 1.4, '3 3');
+    s += L3({ x: 0, y: 0, z: 0 }, { x: xi, y: 0, z: 0 }, CO.angle, 3);            // xi
+    s += L3({ x: 0, y: 0, z: 0 }, { x: 0, y: eta, z: 0 }, CO.angle, 3);          // eta
+    { const R = 0.34; let p = []; const N = 14; for (let i = 0; i <= N; i++) { const b = th * i / N; const P = S({ x: R * Math.cos(b), y: R * Math.sin(b), z: 0 }); p.push(P.x.toFixed(1) + ',' + P.y.toFixed(1)); } s += `<polyline points="${p.join(' ')}" fill="none" stroke="${CO.az}" stroke-width="2"/>`; const lb = S({ x: R * 1.45 * Math.cos(th / 2), y: R * 1.45 * Math.sin(th / 2), z: 0 }); s += tx(lb.x, lb.y, 'θ', CO.az, 14, 'middle', 600); }
+    { const R = 0.34; let p = []; const N = 14; for (let i = 0; i <= N; i++) { const a = ph * i / N; const P = S({ x: R * Math.cos(a) * Math.cos(th), y: R * Math.cos(a) * Math.sin(th), z: R * Math.sin(a) }); p.push(P.x.toFixed(1) + ',' + P.y.toFixed(1)); } s += `<polyline points="${p.join(' ')}" fill="none" stroke="${CO.el}" stroke-width="2"/>`; const am = ph / 2; const lb = S({ x: R * 1.5 * Math.cos(am) * Math.cos(th), y: R * 1.5 * Math.cos(am) * Math.sin(th), z: R * 1.5 * Math.sin(am) }); s += tx(lb.x, lb.y, 'φ', CO.el, 14, 'middle', 600); }
+    { const a = S({ x: 0, y: 0, z: 0 }), b = S(u); s += arrow2(a.x, a.y, b.x, b.y, CO.arrow, 3, null, 11); }
+    { const mx = S({ x: xi / 2, y: 0, z: 0 }); s += tx(mx.x, mx.y + 13, 'ξ', CO.angle, 13, 'middle', 600); }
+    { const my = S({ x: 0, y: eta / 2, z: 0 }); s += tx(my.x + 12, my.y + 6, 'η', CO.angle, 13, 'middle', 600); }
+    { const mz = S({ x: xi, y: eta, z: sp / 2 }); s += tx(mz.x + 13, mz.y, 'sinφ', CO.el, 11.5, 'start', 600); }
+    { const mp = S({ x: xi / 2, y: eta / 2, z: 0 }); s += tx(mp.x - 6, mp.y + 14, 'cosφ', CO.el, 11.5, 'middle', 600); }
+    { const xl = S({ x: axisLen * 1.08, y: 0, z: 0 }); s += tx(xl.x, xl.y + 2, 'x', CO.axis2, 12, 'middle', 600); }
+    { const yl = S({ x: 0, y: axisLen * 1.08, z: 0 }); s += tx(yl.x, yl.y, 'y', CO.axis2, 12, 'middle', 600); }
+    { const zl = S({ x: 0, y: 0, z: axisLen * 1.06 }); s += tx(zl.x, zl.y - 2, 'z', CO.text, 12, 'middle', 600); }
+    { const ul = S(u); s += tx(ul.x + 12, ul.y - 10, 'u', CO.arrow, 13, 'start', 700); }
+    return s;
+  }
+
+  // ---------- §3 Kronecker / separable phases ----------
+  function buildKronecker() {
+    const W = 470, H = 290, Mx = 6, My = 5, th = 58 * PI / 180, ph = 24 * PI / 180;
+    const xi = Math.cos(ph) * Math.cos(th), eta = Math.cos(ph) * Math.sin(th);
+    const cell = 26, gap = 3, gx = 158, gy = 70, r = 10; let s = '';
+    const phasor = (cx, cy, phase, col) => { let o = circle(cx, cy, r, 'rgba(255,255,255,0.03)', CO.line, 1); o += arrow2(cx, cy, cx + r * Math.cos(phase), cy - r * Math.sin(phase), col, 1.6, null, 5); return o; };
+    for (let m = 0; m < Mx; m++) { const cx = gx + m * (cell + gap) + cell / 2; s += phasor(cx, 38, PI * m * xi, CO.az); }
+    s += tx(gx + Mx * (cell + gap) / 2, 18, 'a_x(m) · x 方向 steering', CO.az, 11, 'middle');
+    for (let n = 0; n < My; n++) { const cy = gy + n * (cell + gap) + cell / 2; s += phasor(120, cy, PI * n * eta, CO.el); }
+    s += `<g transform="translate(96,${gy + My * (cell + gap) / 2}) rotate(-90)">` + tx(0, 0, 'a_y(n) · y 方向 steering', CO.el, 11, 'middle') + `</g>`;
+    for (let n = 0; n < My; n++) for (let m = 0; m < Mx; m++) { const x = gx + m * (cell + gap), y = gy + n * (cell + gap); s += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${phaseColor(PI * (m * xi + n * eta))}"/>`; }
+    const gxe = gx + Mx * (cell + gap), gye = gy + My * (cell + gap);
+    s += tx(gx + (gxe - gx) / 2, gye + 18, 'a(θ,φ) = a_y ⊗ a_x   —   相位可分离: φ(m,n) = φ_x(m) + φ_y(n)', CO.text, 11, 'middle');
+    return s;
+  }
+
+  // ---------- §4 three phase structures ----------
+  function buildPhaseStructures() {
+    const W = 620, H = 330, laneX = 150, laneW = W - laneX - 30; let s = '';
+    const lanes = [
+      { y: 56, col: CO.range, name: 'Range 距离', sub: 's(t − τ)' },
+      { y: 162, col: CO.doppler, name: 'Doppler 多普勒', sub: 'e^( j 2π f_D p T )' },
+      { y: 264, col: CO.angle, name: 'Angle 角度', sub: 'e^( j φ_mn )' }
+    ];
+    lanes.forEach(l => {
+      s += `<rect x="20" y="${l.y - 21}" width="112" height="42" rx="9" fill="rgba(255,255,255,0.02)" stroke="${l.col}" stroke-width="1.2"/>`;
+      s += tx(76, l.y - 6, l.name, l.col, 12, 'middle', 600);
+      s += tx(76, l.y + 10, l.sub, CO.muted, 9.5, 'middle');
+    });
+    // range
+    { const y = 56, ax0 = laneX, ax1 = laneX + laneW; s += ln(ax0, y + 24, ax1, y + 24, CO.line, 1.2); s += tx(ax1, y + 39, 't  (fast-time)', CO.faint, 10, 'end');
+      const pulse = (cx, col) => { const w = 17; let d = ''; for (let i = -w; i <= w; i++) { const xx = cx + i, env = Math.exp(-(i * i) / 42), yy = y + 24 - env * 22 * Math.cos(i * 0.9); d += (i === -w ? 'M' : 'L') + xx.toFixed(1) + ' ' + yy.toFixed(1) + ' '; } return `<path d="${d}" fill="none" stroke="${col}" stroke-width="2"/>`; };
+      s += pulse(ax0 + 32, CO.faint); s += pulse(ax0 + 32 + 130, CO.range);
+      s += ln(ax0 + 32, y + 31, ax0 + 162, y + 31, CO.range, 1, '3 3'); s += tx(ax0 + 97, y + 44, 'τ = 2R/c', CO.range, 10, 'middle', 600);
+      s += tx(ax0 + 32, y - 17, 'Tx', CO.faint, 9, 'middle'); s += tx(ax0 + 162, y - 17, 'Echo', CO.range, 9, 'middle', 600);
+    }
+    // doppler
+    { const y = 162, P = 8, x0 = laneX + 14, dx = (laneW - 28) / (P - 1), r = 12, dphi = 0.72;
+      s += ln(laneX, y + 35, laneX + laneW, y + 35, CO.line, 1.2); s += tx(laneX + laneW, y + 48, 'p  (slow-time, pulse #)', CO.faint, 10, 'end');
+      for (let p = 0; p < P; p++) { const cx = x0 + p * dx, cy = y - 2, phh = p * dphi; s += circle(cx, cy, r, 'rgba(244,183,64,0.05)', CO.line, 1); s += arrow2(cx, cy, cx + r * Math.cos(-phh), cy + r * Math.sin(-phh), CO.doppler, 1.6, null, 5); s += tx(cx, y + 23, p, CO.faint, 9, 'middle'); }
+      s += tx(x0 + (P - 1) * dx / 2, y - 26, 'phase advances 2π f_D T per pulse', CO.doppler, 10, 'middle', 600);
+    }
+    // angle
+    { const y = 264, M = 8, x0 = laneX + 14, dx = (laneW - 48) / (M - 1), xi = 0.5;
+      s += ln(x0 - 6, y - 21, x0 + (M - 1) * dx + 8, y - 33, CO.angle, 1.6, '4 3'); s += tx(x0 + (M - 1) * dx + 12, y - 33, 'wavefront', CO.angle, 9, 'start');
+      for (let m = 0; m < M; m++) { const cx = x0 + m * dx; s += circle(cx, y, 5.5, phaseColor(PI * m * xi), '#0b1224', 1); }
+      s += tx(x0 + (M - 1) * dx / 2, y + 25, 'element index m   (phase ∝ m · ξ)', CO.angle, 10, 'middle', 600);
+    }
+    return s;
+  }
+
+  // ---------- §6 range bins ----------
+  function buildRangeBins() {
+    const W = 600, H = 240, x0 = 64, x1 = W - 30, y0 = H - 52, K = 16, dx = (x1 - x0) / K, amp = 118, kq = 9.3; let s = '';
+    s += ln(x0, y0, x1, y0, CO.line, 1.4); s += tx(x1, y0 + 22, 'range bin  k', CO.faint, 11, 'end');
+    for (let k = 0; k <= K; k++) { const x = x0 + k * dx; s += ln(x, y0, x, y0 + 5, CO.faint, 1); }
+    const sinc = x => { const t = x - kq; if (Math.abs(t) < 1e-6) return 1; const z = PI * t; return Math.sin(z) / z; };
+    let d = ''; for (let i = 0; i <= 240; i++) { const k = i / 240 * K, v = Math.abs(sinc(k)), x = x0 + k * dx, yy = y0 - v * amp; d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + yy.toFixed(1) + ' '; }
+    s += `<path d="${d}" fill="none" stroke="${CO.range}" stroke-width="2" opacity="0.85"/>`;
+    for (let k = 0; k <= K; k++) { const v = Math.abs(sinc(k)), x = x0 + k * dx; s += ln(x, y0, x, y0 - v * amp, CO.range, 1.2); s += circle(x, y0 - v * amp, 2.4, CO.range); }
+    const xq = x0 + kq * dx; s += ln(xq, y0, xq, y0 - amp - 10, CO.muted, 1.2, '4 3'); s += tx(xq, y0 - amp - 18, 'k_q ≈ 2R_q ⁄ (c T_s)', CO.range, 11, 'middle', 600);
+    s += tx(x0 - 8, y0 - amp - 18, '| h[k − k_q] |', CO.range, 11, 'start', 600);
+    return s;
+  }
+
+  // ---------- §8 rank-1 outer product ----------
+  function buildRankOne() {
+    const W = 520, H = 300, M = 6, P = 8, dA = 0.8, dB = 0.55, cell = 26, gx = 156, gy = 74, gap = 3; let s = '';
+    for (let i = 0; i < M; i++) { const y = gy + i * (cell + gap); s += `<rect x="${gx - cell - 24}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${phaseColor(i * dA)}"/>`; }
+    s += `<g transform="translate(${gx - cell - 36},${gy + M * (cell + gap) / 2}) rotate(-90)">` + tx(0, 0, 'a(θ,φ)  ∈ ℂ^M', CO.angle, 11, 'middle') + `</g>`;
+    for (let j = 0; j < P; j++) { const x = gx + j * (cell + gap); s += `<rect x="${x}" y="${gy - cell - 24}" width="${cell}" height="${cell}" rx="3" fill="${phaseColor(j * dB)}"/>`; }
+    s += tx(gx + P * (cell + gap) / 2, gy - cell - 32, 'bᵀ(f_D)  ∈ ℂ^P', CO.doppler, 11, 'middle');
+    for (let i = 0; i < M; i++) for (let j = 0; j < P; j++) { const x = gx + j * (cell + gap), y = gy + i * (cell + gap); s += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${phaseColor(i * dA + j * dB)}"/>`; }
+    s += tx(gx + P * (cell + gap) / 2, gy + M * (cell + gap) + 19, 'X = a · bᵀ   →   每个目标 = rank-1 外积 (角度 ⊗ Doppler)', CO.text, 11, 'middle');
+    return s;
+  }
+
+  // ---------- §10 data cube ----------
+  function buildDataCube() {
+    const W = 560, H = 360, ux = 27, uy = 13, uz = 24, o = { x: 266, y: 150 };
+    const I = 5, J = 4, K = 3; // I=fast-time/range (x, down-right), J=slow-time/pulses (y, down-left), K=channel/(m,n) (z, up)
+    const iso = (i, j, k) => ({ x: o.x + (i - j) * ux, y: o.y + (i + j) * uy - k * uz });
+    const poly = (ps, fill) => `<polygon points="${ps.map(p => p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ')}" fill="${fill}" stroke="${CO.line}" stroke-width="1.2"/>`;
+    const seg = (a, b) => `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="${CO.line}" stroke-width="0.7" opacity="0.8"/>`;
+    let s = '';
+    // three visible faces (neutral; depth via lightness)
+    s += poly([iso(0, 0, K), iso(I, 0, K), iso(I, J, K), iso(0, J, K)], 'rgba(120,140,180,0.14)');   // top: fast x slow
+    s += poly([iso(0, J, 0), iso(I, J, 0), iso(I, J, K), iso(0, J, K)], 'rgba(120,140,180,0.085)');   // left: fast x channel
+    s += poly([iso(I, 0, 0), iso(I, J, 0), iso(I, J, K), iso(I, 0, K)], 'rgba(120,140,180,0.05)');    // right: slow x channel
+    // sample grid on the three faces
+    for (let j = 1; j < J; j++) s += seg(iso(0, j, K), iso(I, j, K));
+    for (let i = 1; i < I; i++) s += seg(iso(i, 0, K), iso(i, J, K));
+    for (let k = 1; k < K; k++) s += seg(iso(0, J, k), iso(I, J, k));
+    for (let i = 1; i < I; i++) s += seg(iso(i, J, 0), iso(i, J, K));
+    for (let k = 1; k < K; k++) s += seg(iso(I, 0, k), iso(I, J, k));
+    for (let j = 1; j < J; j++) s += seg(iso(I, j, 0), iso(I, j, K));
+    // axes from the back-bottom corner
+    const O = iso(0, 0, 0); let t;
+    t = iso(I + 0.6, 0, 0); s += arrow2(O.x, O.y, t.x, t.y, CO.range, 1.9, null, 8);
+    s += tx(t.x + 7, t.y + 1, 'x · fast-time', CO.range, 11, 'start', 600); s += tx(t.x + 7, t.y + 14, '(range bin k)', CO.muted, 9.5, 'start');
+    t = iso(0, J + 0.6, 0); s += arrow2(O.x, O.y, t.x, t.y, CO.doppler, 1.9, null, 8);
+    s += tx(t.x - 7, t.y + 1, 'y · slow-time', CO.doppler, 11, 'end', 600); s += tx(t.x - 7, t.y + 14, '(pulse p)', CO.muted, 9.5, 'end');
+    t = iso(0, 0, K + 0.7); s += arrow2(O.x, O.y, t.x, t.y, CO.angle, 1.9, null, 8);
+    s += tx(t.x + 9, t.y + 3, 'z · channel', CO.angle, 11, 'start', 600); s += tx(t.x + 9, t.y + 16, '(m, n)', CO.muted, 9.5, 'start');
+    // callout
+    s += tx(W / 2, H - 30, '每个 voxel = x[m, n, p, k]', CO.text, 11.5, 'middle', 600);
+    s += tx(W / 2, H - 13, 'z 轴每层 = 一个阵元 (m, n) 通道,共 M_x·M_y 个;channel 维本身是二维', CO.muted, 10, 'middle');
+    return s;
+  }
+
+  // ---------- §10 spatial-frequency inversion ----------
+  function buildSpatialFreq() {
+    const W = 360, H = 320, cx = W / 2, cy = H / 2 + 4, R = 110, th = 40 * PI / 180, ph = 30 * PI / 180; let s = '';
+    s += arrow2(cx - R - 10, cy, cx + R + 12, cy, CO.faint, 1.4, null, 7); s += tx(cx + R + 16, cy + 4, 'ω_x', CO.muted, 11, 'start');
+    s += arrow2(cx, cy + R + 10, cx, cy - R - 12, CO.faint, 1.4, null, 7); s += tx(cx + 8, cy - R - 13, 'ω_y', CO.muted, 11, 'start');
+    s += circle(cx, cy, R, 'none', CO.line, 1); s += tx(cx + R * 0.72, cy - 7, 'π', CO.faint, 9, 'middle');
+    const wx = PI * Math.cos(ph) * Math.cos(th), wy = PI * Math.cos(ph) * Math.sin(th);
+    const px = cx + (wx / PI) * R, py = cy - (wy / PI) * R;
+    s += arrow2(cx, cy, px, py, CO.angle, 2.4, null, 9); s += circle(px, py, 3.5, CO.angle);
+    { let p = []; const N = 16; for (let i = 0; i <= N; i++) { const b = th * i / N; p.push((cx + 0.42 * R * Math.cos(b)).toFixed(1) + ',' + (cy - 0.42 * R * Math.sin(b)).toFixed(1)); } s += `<polyline points="${p.join(' ')}" fill="none" stroke="${CO.az}" stroke-width="2"/>`; const lb = th / 2; s += tx(cx + 0.56 * R * Math.cos(lb), cy - 0.56 * R * Math.sin(lb), 'θ', CO.az, 13, 'middle', 600); }
+    s += tx((cx + px) / 2 + 12, (cy + py) / 2 - 8, '|ω| ∝ cosφ', CO.el, 10.5, 'start', 600);
+    s += tx(cx, H - 10, 'atan2 → θ ,  模长 → cosφ', CO.text, 10.5, 'middle');
+    return s;
+  }
+
+  // ---------- interactive wiring ----------
+  const state = { theta: 35, phi: 42, Mx: 8, My: 6, view: { va: 0.72, ve: 0.42 } };
+  const sceneEl = document.getElementById('scene');
+  const phaseEl = document.getElementById('phase');
+  const setText = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  function updateReadouts() {
+    const th = state.theta * PI / 180, ph = state.phi * PI / 180;
+    const xi = Math.cos(ph) * Math.cos(th), eta = Math.cos(ph) * Math.sin(th), cphi = Math.cos(ph);
+    setText('roTheta', state.theta + '°'); setText('roPhi', state.phi + '°');
+    setText('roXi', fmt(xi)); setText('roEta', fmt(eta)); setText('roCos', fmt(cphi));
+    setText('roWx', fmt(PI * xi)); setText('roWy', fmt(PI * eta));
+  }
+  function render() {
+    if (sceneEl) sceneEl.innerHTML = buildScene({ W: 480, H: 460, view: state.view, theta: state.theta, phi: state.phi, Mx: state.Mx, My: state.My });
+    if (phaseEl) phaseEl.innerHTML = buildPhaseGrid(state.theta, state.phi, state.Mx, state.My);
+    updateReadouts();
+  }
+  function bindSlider(id, valId, key, suffix) {
+    const sl = document.getElementById(id); if (!sl) return;
+    const vEl = document.getElementById(valId);
+    const f = () => { state[key] = parseInt(sl.value, 10); if (vEl) vEl.textContent = sl.value + (suffix || ''); render(); };
+    sl.addEventListener('input', f);
+  }
+  bindSlider('sTheta', 'valTheta', 'theta', '°');
+  bindSlider('sPhi', 'valPhi', 'phi', '°');
+  bindSlider('sMx', 'valMx', 'Mx', '');
+  bindSlider('sMy', 'valMy', 'My', '');
+  document.querySelectorAll('.preset').forEach(b => {
+    b.addEventListener('click', () => {
+      const t = b.getAttribute('data-theta'), p = b.getAttribute('data-phi');
+      if (t !== null) { state.theta = parseInt(t, 10); const sl = document.getElementById('sTheta'); if (sl) sl.value = t; const v = document.getElementById('valTheta'); if (v) v.textContent = t + '°'; }
+      if (p !== null) { state.phi = parseInt(p, 10); const sl = document.getElementById('sPhi'); if (sl) sl.value = p; const v = document.getElementById('valPhi'); if (v) v.textContent = p + '°'; }
+      render();
+    });
+  });
+  (function () {
+    if (!sceneEl) return;
+    let drag = false, lx = 0, ly = 0;
+    sceneEl.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; ly = e.clientY; });
+    window.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+      state.view.va -= dx * 0.01;
+      state.view.ve = Math.max(-1.4, Math.min(1.4, state.view.ve + dy * 0.01));
+      render(); if (e.cancelable) e.preventDefault();
+    });
+    window.addEventListener('pointerup', () => { drag = false; });
+    sceneEl.style.touchAction = 'none';
+  })();
+  render();
+
+  // ---------- §2 cosine: interactive (own controls + drag) ----------
+  const cosState = { theta: 42, phi: 32, view: { va: 0.86, ve: 0.5 } };
+  const cosEl = document.getElementById('dgCos');
+  function renderCos() { if (cosEl) cosEl.innerHTML = buildCosine({ theta: cosState.theta, phi: cosState.phi, view: cosState.view }); }
+  (function () {
+    const bind = (id, valId, key) => { const sl = document.getElementById(id); if (!sl) return; const v = document.getElementById(valId); sl.addEventListener('input', () => { cosState[key] = parseInt(sl.value, 10); if (v) v.textContent = sl.value + '°'; renderCos(); }); };
+    bind('cosTheta', 'cosValTheta', 'theta');
+    bind('cosPhi', 'cosValPhi', 'phi');
+    if (cosEl) {
+      let drag = false, lx = 0, ly = 0;
+      cosEl.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; ly = e.clientY; });
+      window.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY; cosState.view.va -= dx * 0.01; cosState.view.ve = Math.max(-1.4, Math.min(1.4, cosState.view.ve + dy * 0.01)); renderCos(); if (e.cancelable) e.preventDefault(); });
+      window.addEventListener('pointerup', () => { drag = false; });
+      cosEl.style.touchAction = 'none';
+    }
+    renderCos();
+  })();
+
+  // ---------- static diagrams ----------
+  const statics = { dgKron: buildKronecker, dgPhase4: buildPhaseStructures, dgRange: buildRangeBins, dgRank: buildRankOne, dgCube: buildDataCube, dgFreq: buildSpatialFreq };
+  Object.keys(statics).forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = statics[id](); });
+
+  // ---------- gentle reveal (motion-safe) ----------
+  if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const secs = document.querySelectorAll('.sec');
+    secs.forEach(s => s.classList.add('reveal'));
+    const io = new IntersectionObserver(es => { es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.08 });
+    secs.forEach(s => io.observe(s));
+  }
+});
+
+</script>
+</body>
+</html>
