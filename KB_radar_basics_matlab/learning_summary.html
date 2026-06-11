@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>雷达信号处理 · 学习总结</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<style>
+:root{
+  --bg:#EDF1F4;
+  --surface:#FFFFFF;
+  --ink:#16212B;
+  --muted:#5B6B79;
+  --faint:#8A98A6;
+  --line:#D8DFE5;
+
+  --range:#0E7D8C;   --range-soft:#E7F2F3;   /* fast time  */
+  --doppler:#C2570F; --doppler-soft:#FBEDE2; /* slow time  */
+  --angle:#6B4FA1;   --angle-soft:#EFEAF7;   /* array elem */
+  --detect:#2E7D45;  --detect-soft:#E8F3EC;  /* detection  */
+
+  --font-display:"Space Grotesk","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  --font-mono:"IBM Plex Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1020px;margin:0 auto;padding:0 24px;}
+
+/* ---------- hero ---------- */
+.hero{padding:64px 0 44px;border-bottom:1px solid var(--line);position:relative;overflow:hidden;}
+.hero::before{
+  content:"";position:absolute;inset:0;
+  background-image:repeating-linear-gradient(90deg,rgba(22,33,43,.035) 0 1px,transparent 1px 58px);
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,transparent 78%);
+          mask-image:linear-gradient(180deg,#000 0%,transparent 78%);
+  pointer-events:none;
+}
+.hero .wrap{position:relative;}
+.eyebrow{font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.22em;font-size:.72rem;color:var(--muted);margin:0 0 16px;}
+h1{font-family:var(--font-display);font-weight:600;font-size:clamp(2rem,6vw,3.4rem);line-height:1.08;letter-spacing:-.02em;margin:0;}
+.lede{max-width:62ch;font-size:1.06rem;color:var(--muted);margin:18px 0 0;}
+.lede code{font-family:var(--font-mono);font-size:.92em;background:#fff;border:1px solid var(--line);border-radius:4px;padding:1px 6px;}
+
+/* ---------- progress strip ---------- */
+.progress{display:flex;flex-wrap:wrap;gap:8px;margin:28px 0 0;}
+.stage{
+  font-family:var(--font-mono);font-size:.74rem;letter-spacing:.02em;
+  padding:5px 12px;border-radius:999px;border:1px solid var(--line);
+  background:var(--surface);color:var(--faint);
+}
+.stage.done{background:var(--detect-soft);border-color:#BFDCC9;color:var(--detect);}
+.stage.now{background:#16212B;border-color:#16212B;color:#fff;}
+
+/* ---------- sections ---------- */
+section{padding:48px 0;border-bottom:1px solid var(--line);}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:24px;}
+.sec-no{font-family:var(--font-display);font-weight:500;font-size:.9rem;color:var(--faint);}
+h2{font-family:var(--font-display);font-weight:600;font-size:1.5rem;letter-spacing:-.01em;margin:0;}
+h3{font-family:var(--font-display);font-weight:600;font-size:1.05rem;margin:0 0 10px;}
+p{margin:0 0 14px;}
+section > .wrap > p, .note{max-width:72ch;}
+.note{color:var(--muted);font-size:.95rem;}
+code{font-family:var(--font-mono);font-size:.9em;}
+
+/* ---------- dimension cards ---------- */
+.dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:8px;}
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:20px 22px;border-top:4px solid var(--accent,var(--line));
+}
+.card.range{--accent:var(--range);--soft:var(--range-soft);}
+.card.doppler{--accent:var(--doppler);--soft:var(--doppler-soft);}
+.card.angle{--accent:var(--angle);--soft:var(--angle-soft);}
+.card.detect{--accent:var(--detect);--soft:var(--detect-soft);}
+.card .tag{
+  display:inline-block;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.08em;
+  text-transform:uppercase;background:var(--soft);color:var(--accent);
+  border-radius:4px;padding:2px 8px;margin-bottom:10px;
+}
+.card ul{margin:10px 0 0;padding-left:18px;}
+.card li{margin:6px 0;font-size:.94rem;}
+.formula{
+  background:var(--soft,#F4F7F9);border-radius:8px;padding:8px 12px;margin:10px 0 0;
+  font-size:.95rem;overflow-x:auto;
+}
+
+/* ---------- generic list blocks ---------- */
+.twocol{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;}
+.panel ul{margin:8px 0 0;padding-left:18px;}
+.panel li{margin:6px 0;font-size:.94rem;}
+.kicker{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:0 0 6px;}
+
+/* ---------- demo table ---------- */
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:.92rem;}
+th,td{padding:10px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);}
+th{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:#F6F8FA;}
+tr:last-child td{border-bottom:none;}
+td.demo-id{font-family:var(--font-mono);white-space:nowrap;color:var(--muted);}
+td .result{color:var(--muted);font-size:.88rem;}
+
+/* ---------- next steps ---------- */
+.next li{margin:8px 0;}
+.gap-list li{margin:8px 0;font-size:.95rem;}
+
+footer{padding:36px 0 56px;color:var(--faint);font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;}
+
+@media (max-width:640px){
+  th,td{padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">radar_basics_matlab · Learning Summary · 2026-06-10</p>
+    <h1>相控阵脉冲多普勒雷达<br>学习总结</h1>
+    <p class="lede">
+      围绕一个核心抽象展开：雷达回波是一个三维复数据立方体
+      <code>x[fast&nbsp;time, slow&nbsp;time, array&nbsp;element]</code>，
+      距离、速度、角度分别藏在三个维度的相位里。目前已完成从信号模型、三维处理、
+      统一 Fourier 视角到 MUSIC / MVDR 的学习，刚进入 CFAR 检测阶段，共完成 12 个 MATLAB demo。
+    </p>
+    <div class="progress">
+      <span class="stage done">1 张量模型</span>
+      <span class="stage done">2 LFM 脉冲多普勒</span>
+      <span class="stage done">3 匹配滤波 / 距离分辨率</span>
+      <span class="stage done">4 Doppler FFT / PRF 模糊</span>
+      <span class="stage done">5 ULA 导向矢量</span>
+      <span class="stage done">6 波束形成 / MUSIC / MVDR</span>
+      <span class="stage now">7 CFAR 检测 ←当前</span>
+      <span class="stage">8 杂波 / 干扰</span>
+      <span class="stage">9 RF 非理想性</span>
+      <span class="stage">10 Simulink 迁移</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 1. 核心抽象 ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-no">01</span><h2>核心抽象：一个数据立方体，三种相位</h2></div>
+    <p>
+      单目标的连续时间回波、矢量形式、数据立方体形式，是<strong>同一个物理信号的三种表示</strong>，
+      而不是三个模型。固定其中两个维度，剩下的那个维度的相位规律就对应一个物理参数：
+    </p>
+    <div class="dims">
+      <div class="card range">
+        <span class="tag">fast time · 距离</span>
+        <p>脉内采样维。目标距离造成回波延迟 \(\tau = 2R/c\)，由匹配滤波 / 脉冲压缩提取。</p>
+        <div class="formula">$$\Delta R = \frac{c}{2B}$$</div>
+      </div>
+      <div class="card doppler">
+        <span class="tag">slow time · 速度</span>
+        <p>脉冲间维。径向速度造成逐脉冲相位旋转，由 Doppler FFT 提取。</p>
+        <div class="formula">$$f_D = \frac{2v}{\lambda},\quad \Delta v \propto \frac{1}{T_{\mathrm{CPI}}}$$</div>
+      </div>
+      <div class="card angle">
+        <span class="tag">array element · 角度</span>
+        <p>阵元维。波达角造成阵元间相位递进，由波束形成 / 空间 FFT 提取。</p>
+        <div class="formula">$$\Delta\phi = -\frac{2\pi d \sin\theta}{\lambda}$$</div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:18px;">
+      统一的处理观：距离、多普勒、角度处理本质上都是<strong>匹配滤波 / 模板投影</strong>——
+      分别用延迟模板、慢时间正弦模板、空间导向矢量去匹配数据，匹配上的 bin 产生相干增益。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 2. 分辨率与模糊 ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-no">02</span><h2>分辨率与模糊：支撑长度决定一切</h2></div>
+    <p>
+      三个维度的物理分辨率都由<strong>测量支撑（support / aperture）的倒数</strong>决定，
+      FFT 补零只是显示插值，不改变物理分辨率：
+    </p>
+    <div class="twocol">
+      <div class="panel">
+        <p class="kicker">分辨率 — 由支撑长度决定</p>
+        <ul>
+          <li><strong>距离</strong>：带宽 \(B\) 越大峰越窄。10 MHz → ≈15 m；8 m 间隔的两目标合并成一个峰，20 MHz 才能分开（demo_02）。</li>
+          <li><strong>速度</strong>：CPI 时长（脉冲数 \(N_p\)）决定速度 bin 间距。30 与 32 m/s 在 \(N_p=64/128\) 都明显重叠；要 0.5 m/s 的 bin 间距约需 \(N_p \approx 300\)（demo_03）。</li>
+          <li><strong>角度</strong>：阵元数 / 孔径决定波束宽度。\(M=16\) 时角分辨率约 7.84°，\(N_{\mathrm{fft}}\) 从 16 加到 4096 也不变；\(M=32\) 才降到约 3.92°（demo_08）。</li>
+          <li>名义分辨率 \(\Delta R = c/(2B)\) 是<strong>尺度而非硬阈值</strong>：略超过它的间隔会部分分开但主瓣仍重叠。</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <p class="kicker">模糊 / 混叠 — 由采样间隔决定</p>
+        <ul>
+          <li><strong>PRF 折中</strong>：PRF↑ → 最大无模糊距离↓、最大无模糊速度↑。</li>
+          <li><strong>Doppler 混叠</strong>：超出无模糊速度区间的目标会折叠，例如速度周期 ≈150 m/s 时，160 m/s 的目标出现在 ≈10 m/s。</li>
+          <li><strong>空间混叠（栅瓣）</strong>：阵元间距是空间采样间隔，\(d \le \lambda/2\) 才无混叠。\(d=\lambda\) 时 30° 目标在 −30° 出现等高栅瓣（0 dB），而 \(d=\lambda/2\) 时该方向约 −308 dB（demo_05）。</li>
+          <li>时间混叠与空间混叠是<strong>同一个采样定理</strong>在 slow time 维和 array element 维的两次出现。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. 端到端骨架 ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-no">03</span><h2>端到端骨架：从原始立方体到目标参数</h2></div>
+    <p>
+      demo_06 把三个维度串成一条完整链路，单目标（4 km, 30 m/s, 20°）估计结果为
+      <code>4002.23 m / 30.45 m/s / 20.00°</code>：
+    </p>
+    <div class="panel" style="font-family:var(--font-mono);font-size:.88rem;overflow-x:auto;">
+      rx[fast, slow, elem] = targetEcho + noise<br>
+      → 匹配滤波（沿 fast time，逐 slow-time/通道切片）<br>
+      → Doppler FFT（沿 slow time，逐 range/通道切片）<br>
+      → 非相干 RD 峰值检出<br>
+      → 仅在检出的 RD cell 上做角度扫描（而非对每个 RD cell 全扫）
+    </div>
+    <p class="note" style="margin-top:14px;">
+      角度域两种等价视角（demo_07）：常规角度扫描 \(|a(\theta)^H x|\) 与空间 FFT 找的是同一个空间频率
+      \(u = d\sin\theta/\lambda\)（如 \(d=\lambda/2,\ \theta=30°\) 时 \(u=0.25\)），二者对同一目标分别估出 30.05° 和 30.06°。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 4. 超分辨与自适应 ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-no">04</span><h2>超分辨与自适应波束：MUSIC 与 MVDR</h2></div>
+    <p>
+      常规波束形成受孔径限制、也不会主动压制干扰。MUSIC 和 MVDR 用<strong>协方差信息</strong>换取更强能力，
+      但代价是更强的模型假设和调参需求。
+    </p>
+    <div class="twocol">
+      <div class="panel" style="border-top:4px solid var(--range);">
+        <p class="kicker" style="color:var(--range);">MUSIC — 子空间超分辨</p>
+        <ul>
+          <li>\(M\) 阵元、\(K\) 个源 → 信号子空间维 \(K\)，噪声子空间维 \(M-K\)（快拍数只影响协方差估计质量，不影响子空间维数）。</li>
+          <li>流程：协方差估计 → 特征分解 → 取噪声子空间 → 伪谱扫描。</li>
+          <li>demo_09：\(M=16, K=2\)，特征值 17.80 / 15.08 / ≈0.03 清晰分层，20° 与 28° 两个近距目标被 MUSIC 分得比常规波束形成尖锐得多。</li>
+          <li>依赖：已知/估计的源数 \(K\)、足够快拍、非相干源、阵列校准准确。</li>
+        </ul>
+      </div>
+      <div class="panel" style="border-top:4px solid var(--doppler);">
+        <p class="kicker" style="color:var(--doppler);">MVDR — 自适应置零</p>
+        <ul>
+          <li>无失真约束下最小化输出功率：</li>
+        </ul>
+        <div class="formula" style="background:var(--doppler-soft);">$$w = \frac{R^{-1}a}{a^H R^{-1} a}$$</div>
+        <ul>
+          <li>demo_10：看向 20°、干扰在 −30°，常规波束对干扰增益约 −26.5 dB，MVDR 约 <strong>−80.3 dB</strong>，且看向增益都保持 0 dB。</li>
+          <li><strong>对角加载</strong>（demo_11）：加载小 → 信任协方差、零陷深（1e−6 → −65 dB）；加载大 → 趋向常规波束、零陷变浅（1e1 → −35 dB）。快拍少 / 协方差不可靠时应加大加载。</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note" style="margin-top:16px;">
+      关键结论：MUSIC / MVDR 不是"免费升级"——它们需要训练快拍和准确模型，常规波束形成在假设不可靠时反而更稳健。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 5. CFAR（进行中）============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-no">05</span><h2>CFAR 检测（当前阶段）</h2></div>
+    <div class="dims">
+      <div class="card detect" style="grid-column:1/-1;">
+        <span class="tag">formulation · 检测 = 逐 cell 二元假设检验</span>
+        <p>
+          检测问题可以 formulate 成：给定 1D/2D/3D 检测统计量 tensor，对每个 cell 做一次
+          \(H_0\)（只有噪声）vs \(H_1\)（有目标）判决，输出<strong>同形状的 0/1 mask tensor</strong>。
+          这个抽象正确，但有两个关键精化：
+        </p>
+        <ul>
+          <li><strong>mask 是中间产物，不是最终输出</strong>：目标主瓣跨越多个 cell，相邻的 1 须先聚类，再输出带参数估计（距离/速度/角度/SNR）的 detection list。demo_12 中 7 个过门限 CUT → 聚类 → 1 个目标。边缘 cell 凑不齐训练窗，通常无判决。</li>
+          <li><strong>"1" ≠ 有目标，而是"统计量过门限"</strong>：噪声 cell 以 \(P_{fa}\) 概率误报 1，弱目标可能漏报 0。mask 是统计判决的一次实现，量化判决器好坏需要 \(P_d\) / \(P_{fa}\) / ROC（即下一阶段内容）。</li>
+        </ul>
+      </div>
+      <div class="card detect" style="grid-column:1/-1;">
+        <span class="tag">CA-CFAR · 1D range profile</span>
+        <ul>
+          <li><strong>CFAR 在上述 formulation 中的定位</strong>：它不定义 mask 问题，而是回答"每个 cell 的门限怎么定"——用 CUT 周围的训练单元自适应估计本地噪声水平，使 \(P_{fa}\) 在不均匀背景下保持恒定（Constant False Alarm Rate 名字的由来）。固定全局门限也能产生 mask，但背景一变 \(P_{fa}\) 就失控。</li>
+          <li>CFAR 是<strong>通用方法</strong>：不限于 RD 图，可作用于任何检测统计量图/立方体（range profile、RD、RA、DA、RDA tensor），核心都是 CUT + 保护单元 + 训练单元。</li>
+          <li>demo_12 在匹配滤波距离像上实现 1D CA-CFAR：7 个相邻 CUT 过门限 → 聚类成 1 个目标，最强检测在 4002.23 m（真值 4000 m）。</li>
+          <li>参数直觉（待巩固）：保护单元防目标能量泄入训练区，训练单元越多噪声估计越平滑，\(P_{fa}\) 决定门限缩放因子。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. demo 索引 ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-no">06</span><h2>实验索引：12 个 demo，每个回答一个问题</h2></div>
+    <table>
+      <thead><tr><th>Demo</th><th>回答的问题</th><th>关键结果</th></tr></thead>
+      <tbody>
+        <tr><td class="demo-id">01</td><td>单目标 RD 处理链是否正确？</td><td class="result">4 km / 30 m/s 目标在 RD 图上峰值位置正确</td></tr>
+        <tr><td class="demo-id">02</td><td>带宽如何决定距离分辨率？</td><td class="result">8 m 间隔：10 MHz 合并，20 MHz 分开；20 m 间隔部分分开</td></tr>
+        <tr><td class="demo-id">03</td><td>CPI 长度如何决定速度分辨率？</td><td class="result">30 vs 32 m/s 在 N<sub>p</sub>=64/128 均重叠，需 N<sub>p</sub>≈300 达 0.5 m/s</td></tr>
+        <tr><td class="demo-id">04</td><td>导向矢量模板如何测角？</td><td class="result">20° 目标估计为 20.05°</td></tr>
+        <tr><td class="demo-id">05</td><td>阵元间距过大会怎样？</td><td class="result">d=λ：−30° 出现 0 dB 栅瓣；d=λ/2：约 −308 dB</td></tr>
+        <tr><td class="demo-id">06</td><td>三维链路能否串起来？</td><td class="result">RDA cube 估出 4002.23 m / 30.45 m/s / 20.00°</td></tr>
+        <tr><td class="demo-id">07</td><td>角度扫描 = 空间 FFT？</td><td class="result">30° 目标：扫描 30.05°，FFT 30.06°；N<sub>fft</sub>=4096 只是插值</td></tr>
+        <tr><td class="demo-id">08</td><td>N<sub>fft</sub> 和 M 谁决定角分辨率？</td><td class="result">M=16 恒为 ≈7.84°；M=32 → ≈3.92°</td></tr>
+        <tr><td class="demo-id">09</td><td>MUSIC 如何超分辨？</td><td class="result">20°/28° 双目标，噪声子空间 14 维，峰远比常规尖锐</td></tr>
+        <tr><td class="demo-id">10</td><td>MVDR 如何压制干扰？</td><td class="result">干扰增益：常规 −26.5 dB vs MVDR −80.3 dB</td></tr>
+        <tr><td class="demo-id">11</td><td>对角加载的折中？</td><td class="result">加载 1e−6 → −65 dB 零陷；1e1 → −35 dB 趋向常规</td></tr>
+        <tr><td class="demo-id">12</td><td>CA-CFAR 如何自适应检测？</td><td class="result">7 个过门限 CUT 聚类为 1 目标，最强点 4002.23 m</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 7. 薄弱点与下一步 ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-no">07</span><h2>当前薄弱点与下一步</h2></div>
+    <div class="twocol">
+      <div class="panel">
+        <p class="kicker">需要巩固</p>
+        <ul class="gap-list">
+          <li>匹配滤波 / Doppler FFT / 波束形成模板中的<strong>共轭与符号约定</strong>（如 demo_07 对快拍取共轭使峰出现在正 \(u\)）。</li>
+          <li>区分名义分辨率与"视觉上干净的双峰分离"；区分 Doppler 分辨率与无模糊速度。</li>
+          <li>角谱中区分真目标峰、旁瓣、噪声峰与栅瓣；均匀加权下增阵元主要变窄主瓣，旁瓣相对电平取决于加窗。</li>
+          <li>对角加载量与协方差质量、导向失配、稳健性需求之间的实际联系。</li>
+          <li>CFAR 训练/保护单元在 1D、2D、3D 检测产品中的设计差异。</li>
+          <li>区分 cell 级二元 mask 与聚类后的 detection list：mask 是中间判决结果，目标报告应包含参数估计与检测统计量。</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <p class="kicker">下一步（按课程顺序）</p>
+        <ul class="next">
+          <li><strong>讲透 demo_12 的 CA-CFAR 参数</strong>，再推广到 2D range-Doppler CFAR。</li>
+          <li>检测指标：\(P_d\) / \(P_{fa}\)、ROC 曲线、SNR 扫描、Monte Carlo。</li>
+          <li>杂波与干扰：zero-Doppler ridge、MTI、旁瓣/主瓣干扰对波束形成的影响。</li>
+          <li>RF / ADC 非理想性：每个 impairment 回答同一个问题——它如何污染 RDA cube？</li>
+          <li>最后才做 Simulink block-level 迁移。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    sources: radar_teaching_plan.md · learners_current_understanding.md · demos/demo_01–12 · last updated 2026-06-10
+  </div>
+</footer>
+
+</body>
+</html>

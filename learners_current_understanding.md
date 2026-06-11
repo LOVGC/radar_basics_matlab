@@ -2,9 +2,9 @@
 
 ## Current Topic and Stage
 
-- Current curriculum topic: Core tensor model: fast time, slow time, array element
-- Current learning stage: First range-Doppler-angle cube implementation has run successfully
-- Last updated: 2026-06-10
+- Current curriculum topic: CFAR and detection metrics
+- Current learning stage: CFAR ROC-style Pfa/SNR sweep demo has run successfully; next step is clutter-aware detection or CA-CFAR failure modes in nonhomogeneous backgrounds
+- Last updated: 2026-06-11
 
 ## Concepts the Learner Seems to Understand
 
@@ -22,6 +22,7 @@
 - Correctly predicts that increasing PRF decreases maximum unambiguous range and increases maximum unambiguous velocity.
 - Correctly recognizes that a target velocity beyond the unambiguous velocity interval will Doppler-alias/wrap rather than appear at its true velocity.
 - Correctly computes a simple aliased velocity by subtracting the velocity period, e.g. `160 m/s -> 10 m/s` when the velocity period is about `150 m/s`.
+- Understands ambiguity as an aliasing problem: sampling makes spectra repeat/shift, and if the repeated copies overlap or map multiple physical parameters to the same sampled phase progression, the original physical value cannot be uniquely recovered.
 - Correctly identifies that a broadside ULA target has zero element-to-element phase shift and an all-ones steering vector under the normalized convention.
 - Correctly simplifies a nonzero ULA steering-vector phase progression: for `Delta phi = -pi/2`, the first four entries are `[1, -j, -1, j]`.
 - Correctly predicts that increasing ULA element count from `M = 8` to `M = 16` narrows the mainlobe and makes the sidelobe/null structure denser.
@@ -45,6 +46,24 @@
 - Has seen an MVDR diagonal-loading sweep where small loading forms a deep jammer null and very large loading makes the null shallower and more conventional-like.
 - Understands that MUSIC and MVDR depend on training snapshots/covariance quality and are less plug-and-play than conventional beamforming because they rely on modeling assumptions and tuning choices.
 - Understands that CFAR is not specific to range-Doppler maps; it can operate on any detection statistic map/cube such as range profiles, RD maps, RA maps, DA maps, or RDA tensors.
+- Has seen a 1D CA-CFAR demo on a matched-filter range profile, including CUT-level thresholding, guard cells, training cells, target detection, and contiguous detection clustering.
+- Understands detection as a mapping from a 1D/2D/3D detection-statistic tensor to a same-shape binary mask tensor indicating candidate target cells.
+- Has seen a 2D CA-CFAR demo on a range-Doppler map that outputs a same-shape binary detection mask and strongest detection estimate.
+- Has seen a Monte Carlo CFAR metrics demo estimating empirical `Pfa` from noise-only trials and empirical `Pd` from target-present trials across an SNR sweep.
+- Understands the Monte Carlo framing for CFAR metrics: one random trial generates a detection-statistic profile, CFAR tests each valid CUT using local training cells to estimate a random threshold, and repeated trials estimate `Pfa`/`Pd` as empirical frequencies.
+- Correctly analogizes radar detection to anomaly detection: CA-CFAR flags cells that deviate significantly from a locally estimated background model built from training cells.
+- Understands that adjacent positive CFAR cells should not automatically be counted as separate targets; postprocessing must consider connectedness, peak structure, and whether close targets may be unresolved or partially merged.
+- Correctly identifies that two local maxima inside one CFAR component with range separation below nominal range resolution should be treated conservatively as unresolved/ambiguous rather than confidently split, because the peaks may be sidelobes or unresolved close targets.
+- Correctly uses statistic-to-threshold margin as evidence for detection-report reliability; a detection far above threshold is generally more trustworthy than one barely crossing threshold.
+- Correctly distinguishes detection energy from CFAR calibration reliability: a high statistic-to-threshold detection near the RD-map edge still needs a caveat if training cells are incomplete and the threshold estimate may be biased or poorly calibrated.
+- Has seen a 2D CFAR detection-list demo convert 28 detected CUTs into 6 connected components, with one strong target report and several weak near-threshold review candidates.
+- Correctly interprets Demo 15's CFAR mask visualization: white cells are CFAR-positive candidate cells, yellow markers indicate component peak locations, and a high `statisticToThreshold` makes the main target report much more reliable than weak near-threshold components.
+- Has seen a design-`Pfa` sweep on the same RD map: lowering `Pfa` from `1e-3` to `1e-7` increased the CA-CFAR threshold scale `alpha`, reduced detected CUTs/components/review candidates, and still detected the strong target in this scenario.
+- Correctly explains the CFAR design-`Pfa` tradeoff: smaller `Pfa` raises the detection threshold, creates a stricter target-declaration standard, reduces point detections, and makes weak low-SNR targets more likely to be missed.
+- Has seen ROC-style Monte Carlo curves where lower design `Pfa` shifts the `Pd` versus SNR curve to the right: stricter thresholds require higher target SNR to reach the same detection probability.
+- Correctly understands Demo 17 as estimating empirical `Pd` over a grid of `(SNR, design Pfa)` settings using repeated target-present Monte Carlo trials, so the experiment samples the mapping `(SNR, Pfa) -> Pd`.
+- Understands detector evaluation as context-dependent rather than a single scalar score: for a specified detector and environment, `Pd` should be interpreted together with SNR and design/empirical `Pfa`.
+- Correctly recognizes the operational tradeoff: low-SNR targets make detection difficult, and for CFAR-like detectors a stricter false-alarm requirement raises threshold and usually reduces `Pd` for weak targets.
 
 ## Understanding Gaps / Misconceptions
 
@@ -76,6 +95,23 @@
 - Needs to connect diagonal-loading choice to practical covariance quality, steering mismatch, and robustness requirements.
 - Should use the term "diagonal loading" rather than "diagonal overloading."
 - Needs to learn how CFAR training cells, guard cells, and CUT neighborhoods should be designed differently for 1D, 2D, and 3D detection products.
+- Needs to connect CA-CFAR parameters to behavior: more guard cells protect against target leakage, more training cells smooth the noise estimate, and `Pfa` controls threshold scaling under model assumptions.
+- Should distinguish the cell-level binary detection mask from the post-processed detection list, where adjacent positive cells are clustered and converted into target reports.
+- Needs to learn 2D detection-mask postprocessing: connected-component clustering, peak selection within each cluster, and converting cells to range/velocity reports.
+- Needs practice deciding when one connected CFAR blob should become one detection versus multiple detections, using evidence such as multiple local maxima, expected resolution, waveform/array response width, amplitudes, and tracker context.
+- Should extend unresolved-target reasoning from range-only resolution to the full 2D/3D response: targets may be range-unresolved but Doppler- or angle-resolved if they are sufficiently separated along those dimensions.
+- Should remember that cluster size is contextual rather than monotonic evidence of confidence: a large cluster can mean a strong/extended response, but can also indicate clutter, merging, sidelobe spread, or unresolved targets.
+- Should continue treating detection report confidence as a combination of evidence strength and validity of the local thresholding assumptions, including edge effects and training-cell availability.
+- Needs practice deciding which detection-list entries should be forwarded to a tracker automatically versus kept as review/caveat candidates, especially when `statisticToThreshold` is only slightly above 1.
+- Needs to keep the binary-mask visualization concrete: white pixels/cells mean CFAR-positive cells (`mask = 1`), black pixels/cells mean not detected or not tested/false (`mask = 0`), and plotted markers/boxes are overlays from postprocessing rather than the mask values themselves.
+- Should phrase white CFAR cells as candidate target evidence rather than confirmed targets; confirmation/reliability comes later from clustering, peak selection, threshold margin, caveats, and tracker context.
+- Needs to connect the ROC-style detector view to nonhomogeneous scenes: clutter edges, multiple targets inside training cells, and target leakage can break the ideal CA-CFAR assumptions.
+- Should keep design `Pfa` distinct from empirical `Pfa`: design `Pfa` sets the CFAR threshold, while empirical `Pfa` is estimated separately from noise-only Monte Carlo trials.
+- Should phrase the SNR/Pfa/Pd relation carefully: SNR does not directly make `Pfa` low; rather, high SNR lets a detector maintain high `Pd` even when the chosen design `Pfa` is strict.
+- Should refine the automation motivation for detection: beyond high data rates, the key value of detection algorithms is quantifiable and controllable error statistics such as analytic `Pfa` control and ROC analysis, which human operators cannot provide to a downstream tracker.
+- Should note that "rule-based" understates CFAR: CA-CFAR thresholds are derived from hypothesis-testing models (e.g. exponential noise gives `alpha = N*(Pfa^{-1/N} - 1)` on the training mean), so performance degradation is predictable when model assumptions break, which motivates GO/SO/OS-CFAR variants.
+- Should distinguish statistical/model-based detection thresholds from more heuristic detection-list postprocessing rules such as clustering, peak splitting, merge criteria, and unresolved-target labeling.
+- Should practice applying the aliasing/ambiguity framework separately to each radar dimension: range ambiguity from delay modulo PRI, Doppler ambiguity from slow-time sampling at PRF, and spatial ambiguity/grating lobes from element spacing above the spatial Nyquist limit.
 
 ## Evidence From Learner Responses
 
@@ -117,6 +153,26 @@
 - A new MATLAB loading sweep showed conventional jammer gain about `-26.46 dB`, MVDR loading `1e-6` about `-65.24 dB`, loading `1e-2` about `-69.15 dB`, and large loading `1e1` about `-34.66 dB`.
 - The learner summarized that MUSIC and MVDR require training/covariance data and can be unstable because MUSIC needs assumptions such as source count `K`, while MVDR can suppress the wrong directions and requires diagonal loading tuning.
 - In a side conversation, the learner asked whether CFAR must be applied on an RD map or can also apply to RA maps and RDA tensors, then accepted that CFAR can operate on any detection map/cube with a CUT and surrounding training cells.
+- A new MATLAB 1D CA-CFAR demo detected the single target range profile: `7` CUTs crossed threshold, forming `1` contiguous detection cluster, with strongest detection at `4002.23 m` for a `4000 m` target.
+- The learner formulated detection as taking a given input tensor, whether 1D, 2D, or 3D, and outputting a same-shape 0/1 mask tensor where 1 marks cells with target evidence.
+- A new MATLAB 2D CA-CFAR demo detected the range-Doppler target: `28` CUTs crossed threshold, with strongest detection at `4002.23 m` and `30.45 m/s` for a `4000 m`, `30 m/s` target.
+- A new MATLAB Monte Carlo demo estimated empirical `Pfa = 9.474e-4` for design `Pfa = 1e-3`, and showed `Pd` increasing from near zero at low SNR to about `0.77` at `10 dB` and near `1.0` by `14 dB`.
+- The learner summarized CFAR Monte Carlo correctly: each test uses surrounding cells to estimate a threshold for a CUT, repeated random trials estimate probabilities in a frequentist way, and a single trial can include tests over every valid cell.
+- The learner compared radar detection to anomaly detection and explained automated detection as motivated by radar data rates exceeding human processing capacity, describing the algorithms as rule-based.
+- The learner summarized ambiguity as fundamentally a Fourier/sampling aliasing issue: sampling creates shifted or repeated spectra, and when shifted copies overlap, the original signal information cannot be uniquely recovered.
+- When asked whether 20 adjacent positive CFAR cells around one RD peak should become 20 detections, 1 detection, or depend on clustering rules, the learner chose the conditional answer and noted that the underlying scene could be one broadened target response or multiple closely spaced targets.
+- The learner asked whether blob interpretation and split/merge decisions are essentially rule-based detections based on human empirical observation implemented as algorithms.
+- When asked how to handle two local maxima in one CFAR component with range separation below `Delta R = c/(2B)`, the learner answered that the detector should mark it unresolved because the maxima may be sidelobes or two targets inside the same range-resolution cell.
+- When comparing two detection reports, the learner identified the report with `statistic / threshold = 8.5` as more trustworthy than one with `1.2`, focusing on threshold margin rather than target size.
+- When asked how to label a detection with `statistic / threshold = 20` at an RD-map edge where training cells are incomplete, the learner answered that it should be treated as high energy but with a caveat because the threshold estimate may be inaccurate.
+- A new MATLAB demo converted the 2D CFAR mask into a detection list: 28 detected CUTs formed 6 connected components; the true target report had range `4002.23 m`, velocity `30.45 m/s`, and `statisticToThreshold = 440.41`, while the other components were marked `weak_margin_review`.
+- The learner asked what the white and black regions in the CFAR binary mask mean, indicating a need to connect the plotted binary image directly to `cfarMask` values and postprocessing overlays.
+- The learner summarized Demo 15: white mask cells are where the detector thinks there is target evidence, yellow markers are peaks inside the white cells/components, and the first detection is more reliable because its `clusterSize = 21` and `statisticToThreshold = 440.41` are much larger than the weak candidates.
+- A new MATLAB design-`Pfa` sweep used the same RD map and showed `Pfa = 1e-3` produced `185` detected CUTs and `116` components, `Pfa = 1e-5` produced `28` CUTs and `6` components, and `Pfa = 1e-7` produced `23` CUTs and `3` components; the strong target stayed detected in all three cases.
+- The learner summarized Demo 16: threshold is determined by the designed `Pfa`; smaller `Pfa` gives a higher threshold and fewer point detections. For a low-SNR target, the learner predicted `Pfa = 1e-3` is more likely to detect it than `Pfa = 1e-7` because the threshold is lower.
+- A new MATLAB ROC-style demo swept target SNR and design `Pfa`; approximate SNR needed for `Pd >= 0.9` increased from `10 dB` at `Pfa = 1e-2`, to `12 dB` at `1e-3`, to `14 dB` at `1e-5`, to `16 dB` at `1e-7`.
+- The learner explained Demo 17 as fixing an SNR and design `Pfa`, running Monte Carlo to estimate `Pd`, then sweeping different SNR/Pfa settings to study the resulting `(SNR, Pfa, Pd)` relationship.
+- The learner summarized detector evaluation as requiring operating conditions instead of a single number: SNR, design/empirical `Pfa`, and `Pd` must be considered together. The learner also connected low SNR to practical radar constraints such as limited transmit power/cost and small target RCS, and explained that stricter `Pfa` raises CFAR threshold and lowers `Pd` for weak targets.
 
 ## Follow-up Questions to Ask
 
@@ -139,10 +195,19 @@
 - Ask the learner to explain why large diagonal loading makes MVDR behave more like conventional beamforming.
 - Ask the learner to compare when conventional beamforming might be preferred over MUSIC/MVDR despite lower resolution or less adaptivity.
 - Ask the learner to identify what the CUT, guard cells, and training cells would mean in a 1D range profile versus a 2D RD map.
+- Ask the learner why multiple adjacent CUT detections near one target should usually be clustered before reporting target count.
+- Ask the learner what information a detection list should include beyond the binary mask, such as estimated range, velocity, angle, and detection statistic/SNR.
+- Ask the learner why CFAR edge cells are often left untested or handled specially.
+- Ask the learner what happens to `Pd` at fixed SNR if the design `Pfa` is reduced from `1e-3` to `1e-6`.
+- Ask the learner which quantity a downstream tracker needs from the detector that a human operator watching displays cannot guarantee or calibrate.
+- Ask the learner what evidence inside one connected CFAR component would justify splitting it into two target reports instead of reporting one peak.
+- Ask the learner which demo_15 detection-list rows should be forwarded automatically to a tracker and which should be filtered or caveated, and why.
+- Ask the learner to predict what would happen to a weaker target if design `Pfa` were reduced from `1e-3` to `1e-7`.
+- Ask the learner to explain why a stricter design `Pfa` shifts the `Pd` curve to the right, and what operational tradeoff that creates.
 
 ## Next Recommended Learning Step
 
-- Begin CFAR with a 1D range-profile example, then generalize to RD, RA, and RDA detection products.
+- Move into clutter-aware detection: show where CA-CFAR works in homogeneous noise and where it degrades near clutter edges or when training cells include target/clutter contamination.
 
 ## Update History
 
@@ -187,3 +252,24 @@
 | 2026-06-10 | MVDR diagonal loading | Built and ran `demo_11_mvdr_diagonal_loading_sweep.m`, showing small loading yields deep jammer nulls while very large loading makes the null shallower. | Recorded visual/numerical evidence of the stability versus null-depth tradeoff. |
 | 2026-06-10 | MUSIC/MVDR assumptions | Summarized that MUSIC and MVDR need training/covariance data and are sensitive to assumptions such as source count, covariance quality, steering mismatch, and diagonal loading. | Recorded strong practical understanding of advanced beamforming tradeoffs. |
 | 2026-06-10 | CFAR scope | Asked whether CFAR must be applied to RD maps or can also apply to RA maps and RDA tensors. | Recorded understanding that CFAR is a general adaptive-threshold method for detection maps/cubes, not an RD-only algorithm. |
+| 2026-06-10 | 1D CA-CFAR | Built and ran `demo_12_cfar_1d_range_profile.m`, detecting the matched-filter target range profile with CA-CFAR. | Recorded first CFAR implementation: CUT thresholding produced 7 adjacent detected CUTs grouped into 1 target cluster, strongest at 4002.23 m. |
+| 2026-06-10 | Detection formulation | Formulated detection as converting an input statistic tensor into a same-shape binary mask tensor. | Recorded correct engineering abstraction and added nuance that masks are usually clustered into detection lists. |
+| 2026-06-10 | 2D CA-CFAR | Built and ran `demo_13_cfar_2d_range_doppler.m`, detecting a single target in a range-Doppler map with a 2D CA-CFAR mask. | Recorded first 2D CFAR implementation: 28 detected CUTs, strongest detection at 4002.23 m and 30.45 m/s. |
+| 2026-06-10 | Detection metrics | Built and ran `demo_14_cfar_pd_pfa_monte_carlo.m`, estimating empirical false alarm probability and detection probability versus SNR. | Recorded first Monte Carlo detection-metrics demo: empirical Pfa matched design Pfa closely and Pd increased with SNR. |
+| 2026-06-10 | Detection motivation | Compared detection to anomaly detection and attributed automation mainly to high radar data rates, calling CFAR rule-based. | Recorded the apt anomaly-detection analogy; refined the motivation to controllable error statistics and noted CA-CFAR thresholds derive from hypothesis-testing models rather than ad-hoc rules. |
+| 2026-06-11 | Learning-state refresh | Recalled `radar_teaching_plan.md` and `learners_current_understanding.md` before continuing. | Aligned current stage with completed 2D CFAR and Pd/Pfa Monte Carlo demos. |
+| 2026-06-11 | Ambiguity / aliasing | Explained ambiguity through Fourier aliasing: sampling creates repeated/shifted spectra, and overlap destroys unique recoverability. | Recorded the unified ambiguity mental model and added follow-up practice across range, Doppler, and spatial dimensions. |
+| 2026-06-11 | CFAR Monte Carlo metrics | Summarized that each CFAR random experiment tests cells by estimating a local threshold from neighboring values, and repeated trials estimate probabilities by empirical frequency. | Recorded understanding of the CUT-level CFAR test, trial-level repetition, and frequentist interpretation of empirical `Pfa` and `Pd`. |
+| 2026-06-11 | CFAR detection-list postprocessing | Chose the conditional interpretation for 20 adjacent CFAR detections and explained that the blob could represent one target response or multiple close targets. | Recorded nuanced understanding that CFAR masks require clustering/peak analysis before target reports, and that close-target separation depends on resolution and evidence. |
+| 2026-06-11 | Detection rules vs statistical detection | Asked whether blob interpretation rules are empirical human-observation rules implemented as algorithms. | Recorded need to distinguish CFAR's statistical threshold model from heuristic/engineering postprocessing rules used to convert masks into detection lists. |
+| 2026-06-11 | Unresolved CFAR components | Answered that two local maxima closer than nominal range resolution should be marked unresolved/ambiguous because they may be sidelobes or targets in the same range-resolution cell. | Recorded conservative split/merge reasoning and added nuance that separability should be assessed across range, Doppler, and angle dimensions. |
+| 2026-06-11 | Detection report confidence | Chose the compact detection with `statistic / threshold = 8.5` over the large barely-above-threshold cluster at `1.2`. | Recorded understanding that threshold margin is strong evidence of report reliability, while cluster size requires contextual interpretation. |
+| 2026-06-11 | Edge-cell detection caveats | Labeled a `statistic / threshold = 20` edge detection as high energy but needing a caveat because incomplete training cells make threshold estimation less reliable. | Recorded distinction between evidence strength and reliability of CFAR calibration assumptions. |
+| 2026-06-11 | CFAR detection list demo | Built and ran `demo_15_cfar_detection_list.m`, converting 28 CFAR CUT detections into 6 connected-component reports. | Recorded that the true target has a very large threshold margin while weak near-threshold components should be marked for review rather than treated as equally reliable targets. |
+| 2026-06-11 | CFAR mask visualization | Asked what black and white mean in the CFAR binary mask plot. | Recorded visualization gap: connect white cells to `mask = 1`, black cells to `mask = 0`/untested cells, and yellow markers/boxes to postprocessing overlays. |
+| 2026-06-11 | Demo 15 consolidation | Correctly summarized white CFAR-positive cells, yellow component peaks, and why the high-margin main report is more reliable than weak candidates. | Marked Demo 15 concept as understood, with a small wording nuance that white cells are candidate evidence rather than confirmed targets. |
+| 2026-06-11 | CFAR Pfa tradeoff demo | Built and ran `demo_16_cfar_pfa_tradeoff.m`, comparing `Pfa = 1e-3`, `1e-5`, and `1e-7` on the same RD map. | Recorded that stricter design `Pfa` raises threshold scale, reduces CUT/component/review-candidate counts, and still detects the strong target in this controlled scenario. |
+| 2026-06-11 | CFAR Pfa/Pd tradeoff | Explained that smaller design `Pfa` raises threshold and reduces point detections; predicted that a low-SNR target is more likely to be detected with `Pfa = 1e-3` than `Pfa = 1e-7`. | Recorded understanding of the qualitative ROC tradeoff: looser thresholds improve detection probability for weak targets while allowing more false candidates. |
+| 2026-06-11 | CFAR ROC-style curves | Built and ran `demo_17_cfar_roc_pfa_snr_sweep.m`, sweeping target SNR for design `Pfa = 1e-2`, `1e-3`, `1e-5`, and `1e-7`. | Recorded the ROC-style result that stricter `Pfa` reduces false alarms but shifts the `Pd` curve right, requiring higher SNR for the same detection probability. |
+| 2026-06-11 | Demo 17 interpretation | Described each Monte Carlo point as fixing SNR and design `Pfa`, estimating `Pd`, then studying the relationship across `(SNR, Pfa, Pd)`. | Recorded correct experiment-design understanding and added nuance that empirical `Pfa` is estimated separately from noise-only trials. |
+| 2026-06-11 | Detector evaluation tradeoffs | Summarized that detector quality is context-dependent and should be evaluated through SNR, `Pfa`, and `Pd`, especially under low-SNR operational constraints. | Recorded strong ROC-level understanding and added nuance that SNR affects `Pd` for a chosen threshold but does not directly set `Pfa`. |
