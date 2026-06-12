@@ -3,8 +3,8 @@
 ## Current Topic and Stage
 
 - Current curriculum topic: CFAR and detection metrics
-- Current learning stage: CFAR ROC-style Pfa/SNR sweep demo has run successfully; next step is clutter-aware detection or CA-CFAR failure modes in nonhomogeneous backgrounds
-- Last updated: 2026-06-11
+- Current learning stage: Stationary clutter and two-pulse MTI demo has run successfully; next step is CFAR after clutter suppression or moving clutter / Doppler-spread clutter
+- Last updated: 2026-06-12
 
 ## Concepts the Learner Seems to Understand
 
@@ -64,6 +64,13 @@
 - Correctly understands Demo 17 as estimating empirical `Pd` over a grid of `(SNR, design Pfa)` settings using repeated target-present Monte Carlo trials, so the experiment samples the mapping `(SNR, Pfa) -> Pd`.
 - Understands detector evaluation as context-dependent rather than a single scalar score: for a specified detector and environment, `Pd` should be interpreted together with SNR and design/empirical `Pfa`.
 - Correctly recognizes the operational tradeoff: low-SNR targets make detection difficult, and for CFAR-like detectors a stricter false-alarm requirement raises threshold and usually reduces `Pd` for weak targets.
+- Correctly converts a system-level false-alarm budget into per-cell `Pfa`: if `1e6` tested cells can tolerate about `10` false alarms per CPI, the per-cell design `Pfa` should be about `1e-5`.
+- Correctly predicts that strong clutter contamination in CA-CFAR training cells biases the noise/clutter estimate upward, raises the threshold, and makes target misses more likely.
+- Has seen a 1D clutter-edge demo where a weak target before a 20 dB clutter step is missed by CA-CFAR because the high-clutter side contaminates the training average.
+- Correctly generalizes Demo 18: different CFAR-like detectors use different background/noise estimation rules, which create different `Pfa`/`Pd`/ROC behavior under nonhomogeneous clutter; no single simple CFAR variant is uniformly best across all clutter distributions.
+- Proposed a research direction: learn environment/clutter statistics from historical or online radar data, then use that learned distribution to improve detection beyond single-frame local CFAR estimates in complex backgrounds.
+- Correctly predicts that stationary clutter appears near the `0 m/s` Doppler bin in an RD map because its radial velocity is approximately zero and its slow-time phase is nearly constant.
+- Has seen a stationary-clutter RD demo where many zero-velocity scatterers form a vertical zero-Doppler clutter ridge, and a two-pulse MTI canceller suppresses that ridge while preserving a `30 m/s` moving target.
 
 ## Understanding Gaps / Misconceptions
 
@@ -105,9 +112,13 @@
 - Needs practice deciding which detection-list entries should be forwarded to a tracker automatically versus kept as review/caveat candidates, especially when `statisticToThreshold` is only slightly above 1.
 - Needs to keep the binary-mask visualization concrete: white pixels/cells mean CFAR-positive cells (`mask = 1`), black pixels/cells mean not detected or not tested/false (`mask = 0`), and plotted markers/boxes are overlays from postprocessing rather than the mask values themselves.
 - Should phrase white CFAR cells as candidate target evidence rather than confirmed targets; confirmation/reliability comes later from clustering, peak selection, threshold margin, caveats, and tracker context.
-- Needs to connect the ROC-style detector view to nonhomogeneous scenes: clutter edges, multiple targets inside training cells, and target leakage can break the ideal CA-CFAR assumptions.
+- Needs to connect the clutter-edge result back to detector design choices: CA-CFAR is well calibrated in homogeneous backgrounds, but nonhomogeneous training cells can bias thresholds and motivate GO/SO/OS-CFAR variants.
+- Should understand GO/SO/OS-CFAR as robust background estimators matched to different clutter assumptions, not arbitrary threshold tricks; each improves one failure mode while creating another tradeoff.
+- Should next distinguish "learning a better background/clutter model" from "losing false-alarm calibration": any learned detector still needs calibrated thresholds, held-out environment tests, and ROC/Pfa validation.
+- Needs to connect MTI output to detection: after clutter suppression, CFAR should run on a less clutter-dominated RD map, but MTI also changes noise/clutter statistics and attenuates slow targets near zero Doppler.
 - Should keep design `Pfa` distinct from empirical `Pfa`: design `Pfa` sets the CFAR threshold, while empirical `Pfa` is estimated separately from noise-only Monte Carlo trials.
 - Should phrase the SNR/Pfa/Pd relation carefully: SNR does not directly make `Pfa` low; rather, high SNR lets a detector maintain high `Pd` even when the chosen design `Pfa` is strict.
+- Asked for a deeper explanation of ROC thinking; next teaching should distinguish classic ROC curves from Demo 17's ROC-style Pd-vs-SNR family and connect both to operating-point selection.
 - Should refine the automation motivation for detection: beyond high data rates, the key value of detection algorithms is quantifiable and controllable error statistics such as analytic `Pfa` control and ROC analysis, which human operators cannot provide to a downstream tracker.
 - Should note that "rule-based" understates CFAR: CA-CFAR thresholds are derived from hypothesis-testing models (e.g. exponential noise gives `alpha = N*(Pfa^{-1/N} - 1)` on the training mean), so performance degradation is predictable when model assumptions break, which motivates GO/SO/OS-CFAR variants.
 - Should distinguish statistical/model-based detection thresholds from more heuristic detection-list postprocessing rules such as clustering, peak splitting, merge criteria, and unresolved-target labeling.
@@ -173,6 +184,14 @@
 - A new MATLAB ROC-style demo swept target SNR and design `Pfa`; approximate SNR needed for `Pd >= 0.9` increased from `10 dB` at `Pfa = 1e-2`, to `12 dB` at `1e-3`, to `14 dB` at `1e-5`, to `16 dB` at `1e-7`.
 - The learner explained Demo 17 as fixing an SNR and design `Pfa`, running Monte Carlo to estimate `Pd`, then sweeping different SNR/Pfa settings to study the resulting `(SNR, Pfa, Pd)` relationship.
 - The learner summarized detector evaluation as requiring operating conditions instead of a single number: SNR, design/empirical `Pfa`, and `Pd` must be considered together. The learner also connected low SNR to practical radar constraints such as limited transmit power/cost and small target RCS, and explained that stricter `Pfa` raises CFAR threshold and lowers `Pd` for weak targets.
+- The learner asked for a detailed explanation of ROC thinking after understanding that detector evaluation depends jointly on SNR, `Pfa`, and `Pd`.
+- When asked to choose per-cell `Pfa` for `1e6` tested cells and an average budget of `10` false alarms per CPI, the learner answered `1e-5`.
+- When asked what happens if one side of CA-CFAR training cells contains strong clutter while the CUT has no target, the learner predicted the threshold becomes biased high and targets are more likely to be missed.
+- A new MATLAB clutter-edge demo used low/high clutter powers `1` and `100`, a target at bin `262`, and a clutter edge at bin `270`; CA-CFAR saw left/right training means `1.04` and `91.47`, producing a CA threshold `343.68` above the target statistic `121.06`, so the target was missed.
+- The learner summarized Demo 18 as showing that different statistical threshold-estimation methods lead to different detector performance (`Pfa`, `Pd`, ROC behavior), and that CFAR-like detectors are not perfect because no single variant handles every clutter distribution well.
+- The learner proposed collecting environment statistics before or during radar operation, training a model to learn the clutter/background distribution, and using simulation data to test whether such learned environment-aware detection can outperform CFAR in complex clutter.
+- When asked whether stationary clutter or a `30 m/s` target lies closer to the `0 m/s` Doppler bin, the learner answered stationary clutter because its velocity is zero.
+- A new MATLAB stationary-clutter demo created 30 zero-velocity clutter scatterers and one `30 m/s` target; the two-pulse MTI reduced total zero-Doppler power by about `73.99 dB`, while the target-cell power changed by about `+1.41 dB`.
 
 ## Follow-up Questions to Ask
 
@@ -207,7 +226,7 @@
 
 ## Next Recommended Learning Step
 
-- Move into clutter-aware detection: show where CA-CFAR works in homogeneous noise and where it degrades near clutter edges or when training cells include target/clutter contamination.
+- Add CFAR before/after MTI to show how clutter suppression changes the detector's false alarms and target detectability, then discuss slow-target loss near the MTI notch.
 
 ## Update History
 
@@ -273,3 +292,11 @@
 | 2026-06-11 | CFAR ROC-style curves | Built and ran `demo_17_cfar_roc_pfa_snr_sweep.m`, sweeping target SNR for design `Pfa = 1e-2`, `1e-3`, `1e-5`, and `1e-7`. | Recorded the ROC-style result that stricter `Pfa` reduces false alarms but shifts the `Pd` curve right, requiring higher SNR for the same detection probability. |
 | 2026-06-11 | Demo 17 interpretation | Described each Monte Carlo point as fixing SNR and design `Pfa`, estimating `Pd`, then studying the relationship across `(SNR, Pfa, Pd)`. | Recorded correct experiment-design understanding and added nuance that empirical `Pfa` is estimated separately from noise-only trials. |
 | 2026-06-11 | Detector evaluation tradeoffs | Summarized that detector quality is context-dependent and should be evaluated through SNR, `Pfa`, and `Pd`, especially under low-SNR operational constraints. | Recorded strong ROC-level understanding and added nuance that SNR affects `Pd` for a chosen threshold but does not directly set `Pfa`. |
+| 2026-06-11 | ROC thinking request | Asked for a detailed explanation of ROC thinking. | Recorded the next teaching need: explain detector statistic distributions, threshold movement, classic ROC, Demo 17's Pd-vs-SNR family, and operating-point selection. |
+| 2026-06-11 | False-alarm budget | Computed per-cell `Pfa = 1e-5` from `10` allowable false alarms over `1e6` tested cells. | Recorded understanding that operating-point selection is constrained by downstream false-alarm budget, not just by per-cell detector theory. |
+| 2026-06-11 | CA-CFAR clutter contamination | Predicted that strong clutter in training cells raises CA-CFAR threshold and makes miss detections more likely. | Recorded initial understanding of CA-CFAR failure modes in nonhomogeneous backgrounds. |
+| 2026-06-12 | CA-CFAR clutter edge demo | Built and ran `demo_18_cfar_clutter_edge.m`; CA-CFAR missed a target near a 20 dB clutter step because right-side training cells raised the threshold above the target statistic. | Recorded visual and numerical evidence that CA-CFAR's homogeneous-background assumption breaks at clutter edges, motivating clutter-aware CFAR variants. |
+| 2026-06-12 | CFAR variant tradeoffs | Summarized that different threshold-estimation statistics produce different detector performance and that no CFAR-like detector is universally best across clutter distributions. | Recorded strong conceptual understanding of detector/clutter mismatch and added nuance that CFAR variants are robust estimators tuned to different assumptions. |
+| 2026-06-12 | Environment-learned detection idea | Proposed learning environment/clutter distributions from prior or online radar data to improve detection beyond single-frame CFAR estimates, first validated with simulation. | Recorded a promising research direction and the need to preserve calibrated `Pfa`/ROC evaluation when using learned models. |
+| 2026-06-12 | Stationary clutter Doppler intuition | Predicted that stationary clutter appears near the zero-Doppler bin because its radial velocity is approximately zero. | Recorded readiness to move from CFAR-only detection into clutter ridge and MTI/Doppler filtering. |
+| 2026-06-12 | Stationary clutter and MTI demo | Built and ran `demo_19_stationary_clutter_mti.m`; stationary clutter formed a zero-Doppler ridge and two-pulse MTI suppressed zero-Doppler power by about `73.99 dB` while preserving the `30 m/s` target. | Recorded visual/numerical evidence that stationary clutter is a slow-time problem and that MTI is a Doppler high-pass/notch filter before detection. |
