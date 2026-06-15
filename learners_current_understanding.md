@@ -2,9 +2,9 @@
 
 ## Current Topic and Stage
 
-- Current curriculum topic: CFAR and detection metrics
-- Current learning stage: Stationary clutter and two-pulse MTI demo has run successfully; next step is CFAR after clutter suppression or moving clutter / Doppler-spread clutter
-- Last updated: 2026-06-12
+- Current curriculum topic: Clutter-map failure modes and deep-learning background modeling research direction
+- Current learning stage: Learner connected clutter-map failure scenarios to a possible deep-learning research direction; a new research idea document has been formulated.
+- Last updated: 2026-06-15
 
 ## Concepts the Learner Seems to Understand
 
@@ -71,6 +71,38 @@
 - Proposed a research direction: learn environment/clutter statistics from historical or online radar data, then use that learned distribution to improve detection beyond single-frame local CFAR estimates in complex backgrounds.
 - Correctly predicts that stationary clutter appears near the `0 m/s` Doppler bin in an RD map because its radial velocity is approximately zero and its slow-time phase is nearly constant.
 - Has seen a stationary-clutter RD demo where many zero-velocity scatterers form a vertical zero-Doppler clutter ridge, and a two-pulse MTI canceller suppresses that ridge while preserving a `30 m/s` moving target.
+- Correctly predicts that after two-pulse MTI, stationary clutter is suppressed, a `30 m/s` moving target is mostly preserved, and a slow `1 m/s` target may also be suppressed because it lies close to the MTI notch.
+- Correctly chooses a processing-chain diagnosis for a missed slow target after MTI plus CFAR: inspect both the CFAR threshold setting and the target-cell energy before/after MTI, rather than assuming only one cause.
+- Has seen a CFAR-before/after-MTI demo where detected CUTs drop from `703` to `55`, zero-Doppler detected CUTs drop from `322` to `8`, and zero-Doppler total power is suppressed by `56.60 dB`.
+- Has seen that the stationary clutter sample is removed by MTI plus CFAR: its CFAR margin drops from about `374` before MTI to about `0.086` after MTI.
+- Has seen that a `1 m/s` slow target can lose about `27.44 dB` of absolute RD power after two-pulse MTI while still being detected if the post-MTI local CFAR threshold also drops enough.
+- Has seen that a `30 m/s` target is preserved by two-pulse MTI in this scenario, with about `+1.41 dB` target-cell power change and a strong CFAR margin both before and after MTI.
+- Correctly reads Demo 20 as a point-scatterer signal model where targets and clutter scatterers use the same echo-generation mechanism, with clutter represented as many scatterers rather than a separate physical signal type.
+- Correctly separates code roles in Demo 20: baseline parameters define the radar/scenario/sampling setup, CFAR parameters define the detector configuration, derived values compute waveform/axis/performance quantities, echo synthesis creates target/clutter/noise data, and the processing chain is matched filtering, MTI, Doppler FFT, then CFAR.
+- Correctly reasons that the `1 m/s` target can remain CFAR-detected after MTI because its post-MTI local CFAR threshold can also be low, so detection depends on the statistic-to-threshold ratio rather than absolute target power alone.
+- Asked what `statistic` means in Demo 20; the answer is that the per-CUT CFAR statistic is `rdPower(r,dBin) = abs(rangeDoppler(r,dBin))^2`, while the truth-cell table/plot uses the local maximum RD power near each known truth point to tolerate bin mismatch.
+- Has seen a velocity-sweep demo where two-pulse MTI attenuation is strongest near zero velocity and relaxes as target radial velocity increases.
+- Has seen a low-amplitude target scenario where after-MTI CFAR misses `0 m/s` and `0.1 m/s` targets, then first detects the target at `0.25 m/s` because the post-MTI statistic-to-threshold margin rises just above 1.
+- Has seen measured target RD power change after MTI track the theoretical two-pulse MTI response: about `-48.15 dB` at `0.1 m/s`, `-39.28 dB` at `0.25 m/s`, `-26.66 dB` at `1 m/s`, and `+1.41 dB` at `30 m/s`.
+- Correctly explains Demo 21's after-MTI CFAR misses at `0` and `0.1 m/s`: the MTI filter attenuates those near-zero-Doppler target power values so much that the post-MTI statistic falls below the CFAR threshold.
+- Has seen a Doppler-spread clutter demo comparing exactly stationary clutter to clutter scatterers with velocities distributed near zero.
+- Has seen that two-pulse MTI suppresses exactly stationary clutter much more strongly than Doppler-spread clutter: zero-Doppler suppression was `79.32 dB` for stationary clutter versus `30.91 dB` for Doppler-spread clutter, and low-Doppler-band suppression was `58.24 dB` versus `22.56 dB`.
+- Has seen that Doppler-spread clutter creates many after-MTI low-Doppler CFAR detections: `0` low-Doppler detected CUTs for stationary clutter versus `323` for Doppler-spread clutter in Demo 22.
+- Asked how Demo 22 computes low-Doppler suppression; the metric sums RD power over all range bins and Doppler bins with `abs(velocity) <= 5 m/s`, then computes `10*log10(lowBefore/lowAfter)`.
+- Asked how Demo 22's Doppler profile after MTI is made; it sums `rdPowerAfter` over the range dimension for each Doppler bin, normalizes by the maximum, and plots the all-range Doppler power profile.
+- Correctly summarizes Demo 22 as showing that a simple MTI filter cannot fully handle more complex clutter whose RD-map structure is not captured by the simple exact-zero-Doppler rule.
+- Has seen a Doppler clutter mask demo where raw after-MTI CFAR produced `405` detected CUTs, including `365` low-Doppler detected CUTs, but applying a report-stage `|v| <= 5 m/s` mask reduced reportable detections to `40` and low-Doppler reports to `0`.
+- Has seen the main Doppler-mask tradeoff: a `2 m/s` slow target had a strong raw CFAR margin (`228.51`) and was detected before the report mask, but was not reported because it lay inside the low-Doppler clutter mask; a `12 m/s` target remained reported.
+- Correctly explains that Demo 23's `2 m/s` target is not reported because detections inside the low-Doppler mask band, approximately `-5` to `+5 m/s`, are manually suppressed after raw CFAR.
+- States that Demo 23 is understood, indicating the distinction between raw CFAR detection and final report-stage filtering is stable enough to move on.
+- Has seen a clutter-map demo where `20` target-free historical RD maps are averaged into a learned background map, then the current RD map is compared against that map using `currentPower / (clutterMap + floor)`.
+- Has seen that the fixed Doppler mask still removes the `2 m/s` slow target, while the clutter-map surprise detector recovers it because it is new relative to the learned background: slow-target surprise was `21.91 dB` above background with a `12 dB` threshold.
+- Has seen Demo 24 reduce low-Doppler clutter differently from the fixed mask: raw after-MTI CFAR produced `350` low-Doppler detections, the fixed Doppler mask allowed `0` low-Doppler reports, while the clutter-map surprise mask produced `8` low-Doppler surprise cells including the slow target.
+- Asked what Demo 24 is intended to show and how the code's overall logic is organized.
+- Correctly summarizes Demo 24's clutter-map core as: collect target-free historical RD maps, average them to estimate each cell's background clutter level, then compute `RD_map_new / clutter_map` to find cells that are unusually strong relative to their history.
+- Asked whether clutter maps are used in real radar systems and when the method does not work, showing readiness to connect the demo to operational assumptions and failure modes.
+- Formulated a research direction: use deep learning to address clutter-map failure modes such as nonstationary clutter, target contamination, registration error, and complex Doppler-spread clutter while preserving calibrated false-alarm control.
+- Understands that the deep-learning opportunity is not simply "replace CFAR," but to learn a richer `history -> current background distribution` model and evaluate detections at fixed empirical `Pfa`.
 
 ## Understanding Gaps / Misconceptions
 
@@ -123,6 +155,30 @@
 - Should note that "rule-based" understates CFAR: CA-CFAR thresholds are derived from hypothesis-testing models (e.g. exponential noise gives `alpha = N*(Pfa^{-1/N} - 1)` on the training mean), so performance degradation is predictable when model assumptions break, which motivates GO/SO/OS-CFAR variants.
 - Should distinguish statistical/model-based detection thresholds from more heuristic detection-list postprocessing rules such as clustering, peak splitting, merge criteria, and unresolved-target labeling.
 - Should practice applying the aliasing/ambiguity framework separately to each radar dimension: range ambiguity from delay modulo PRI, Doppler ambiguity from slow-time sampling at PRF, and spatial ambiguity/grating lobes from element spacing above the spatial Nyquist limit.
+- Should next quantify the MTI notch: slow targets are not simply "kept" or "removed"; their attenuation depends on Doppler frequency / radial velocity, PRF, wavelength, and the MTI filter response.
+- Should practice diagnosing missed detections by comparing target statistic, CFAR threshold, and pre/post-clutter-suppression energy at the same range-Doppler cell.
+- Should distinguish absolute target energy loss from CFAR detectability: MTI can reduce target power and also change the local background/threshold, so the final detection depends on the statistic-to-threshold margin after filtering.
+- Should remember that "clutter as many point scatterers" is a useful simulation approximation; real clutter can be distributed, correlated, Doppler-spread, and nonstationary rather than literally isolated ideal points.
+- Needs to keep the general term "detection statistic" distinct from this demo's specific choice: here it is RD power, but other detectors may use amplitude, log power, beamformed power, noncoherent integration, likelihood ratios, or learned scores.
+- Should interpret a `0 dB` CFAR margin as exactly at threshold: above `0 dB` means detected, below `0 dB` means missed, assuming the cell is tested and the local threshold is valid.
+- Should remember that the slow-target detectability boundary is scenario-dependent; it moves with target amplitude/RCS, noise, clutter, PRF, wavelength, MTI filter choice, CFAR parameters, and local training-cell statistics.
+- Should distinguish a narrow zero-Doppler clutter ridge from a Doppler-spread clutter ridge: MTI has a deep notch only at exact zero Doppler, so clutter energy away from zero can survive.
+- Should next connect Doppler-spread clutter to CFAR calibration problems: residual clutter can raise local thresholds, create false detections, or obscure slow targets.
+- Needs to explicitly connect Demo 22's implementation structure to its teaching goal: compare exact zero-Doppler clutter with clutter whose scatterer velocities are spread around zero, then observe MTI residuals and CFAR detections.
+- Should keep zero-Doppler suppression and low-Doppler-band suppression distinct: the former uses only the Doppler bin closest to `0 m/s`, while the latter sums a velocity band such as `[-5, +5] m/s`.
+- Should distinguish a single-range-bin Doppler cut from an all-range Doppler profile: Demo 22's rightmost profile uses `sum(rdPowerAfter, 1)`, so it shows total after-MTI power per Doppler bin across all ranges.
+- Should refine the phrasing "cannot be described by a simple rule": complex clutter may still have statistical or physical structure, but a single fixed notch/rule is too simple to model and suppress it robustly.
+- Should distinguish detection from reporting: in Demo 23 the slow target is detected by raw CFAR, but the report-stage Doppler mask suppresses it from the final report list.
+- Should understand a Doppler clutter mask as a policy/operating-mode choice, not a magical clutter remover: it reduces low-Doppler false reports by creating a low-speed blind zone.
+- Should distinguish fixed exclusion rules from learned background models: a clutter map uses historical per-cell statistics and can preserve a new low-speed target if it is unusual relative to that cell's background.
+- Should remember that Demo 24's surprise threshold is a simple illustrative threshold, not yet a fully calibrated `Pfa`-controlled detector; proper deployment would need validation, update rules, and target-contamination safeguards.
+- Should learn the risk of clutter-map adaptation: if a target stays in the scene and the background map updates too aggressively, the target can be absorbed into the clutter map.
+- Needs to explicitly connect Demo 24's implementation structure to its teaching goal: target-free history builds a per-cell background map, the current frame adds new targets, and the detector compares current RD power against historical background.
+- Should refine the "assume no target" phrasing: Demo 24 uses target-free history for clarity, but practical clutter maps need track/exclusion logic, robust averaging, or slow update rates because history can contain real targets.
+- Should remember the denominator in Demo 24 is `clutterMap + backgroundFloor`, not just `clutterMap`, to avoid unstable ratios in very low-background cells.
+- Needs to connect clutter-map validity to stationarity and registration assumptions: the same map cell must correspond to the same physical background over time, and the background statistics must change slowly enough to estimate.
+- Should next distinguish possible learned outputs: background prediction, uncertainty map, calibrated anomaly score, or threshold correction.
+- Should keep the main research constraint explicit: any deep-learning detector must be evaluated with empirical `Pfa`, `Pd`, false alarms per CPI, and ROC-style operating points rather than accuracy alone.
 
 ## Evidence From Learner Responses
 
@@ -192,6 +248,27 @@
 - The learner proposed collecting environment statistics before or during radar operation, training a model to learn the clutter/background distribution, and using simulation data to test whether such learned environment-aware detection can outperform CFAR in complex clutter.
 - When asked whether stationary clutter or a `30 m/s` target lies closer to the `0 m/s` Doppler bin, the learner answered stationary clutter because its velocity is zero.
 - A new MATLAB stationary-clutter demo created 30 zero-velocity clutter scatterers and one `30 m/s` target; the two-pulse MTI reduced total zero-Doppler power by about `73.99 dB`, while the target-cell power changed by about `+1.41 dB`.
+- When asked what happens after two-pulse MTI to stationary clutter, a `30 m/s` vehicle, and a `1 m/s` slow pedestrian, the learner answered that stationary clutter is suppressed, the slow target may also be suppressed, and the `30 m/s` target is preserved.
+- When asked why a `30 m/s` vehicle is detected after MTI plus CFAR but a `1 m/s` pedestrian is missed, the learner chose the combined diagnosis: both strict CFAR thresholding and MTI slow-target attenuation are possible, and the right first check is target-cell energy before/after MTI.
+- A new MATLAB demo compared CFAR before and after MTI: total detected CUTs changed from `703` to `55`, zero-Doppler detections changed from `322` to `8`, stationary clutter CFAR margin changed from `374.04` to `0.086`, the `1 m/s` target power changed by `-27.44 dB` but remained detected, and the `30 m/s` target power changed by `+1.41 dB` and remained detected.
+- The learner read Demo 20 and summarized that baseline parameters define the point-scatterer signal model, targets and clutter are both scatterers from the radar's perspective, 2D CA-CFAR parameters configure the detector, derived values compute signal/performance quantities, echo synthesis builds target/clutter/noise returns, and the processing chain is matched filter -> MTI -> Doppler FFT -> CFAR.
+- The learner explained that the `1 m/s` target may still pass CFAR after MTI because CFAR estimates a local threshold from surrounding cells, and the threshold around the slow target can be low after clutter suppression; the learner also said they are not yet sure how the truth-cell CFAR margins plot is generated.
+- The learner asked whether the `statistic` in Demo 20 is specifically the CUT's power value, revealing the need to distinguish the per-CUT CFAR test from the truth-summary windowed maximum.
+- A new MATLAB velocity-sweep demo used a low-amplitude target and showed after-MTI CFAR misses at `0` and `0.1 m/s`, first detects at `0.25 m/s`, and then gains margin as velocity increases away from the MTI notch.
+- The learner explained that `0` and `0.1 m/s` are missed after MTI because the filter suppresses their corresponding power values enough to fall below the CFAR threshold.
+- A new MATLAB Doppler-spread clutter demo showed that stationary clutter leaves almost no after-MTI low-Doppler detections, while Doppler-spread clutter leaves a visibly widened residual ridge and many after-MTI low-Doppler CFAR detections.
+- The learner asked what Demo 22 is intended to show and how the code's overall logic is organized.
+- The learner asked how `low-Doppler suppression` is computed, indicating a need to distinguish a single-bin suppression metric from an integrated low-Doppler-band power metric.
+- The learner asked which range bin the Demo 22 Doppler profile corresponds to, revealing a need to clarify that the plotted curve is integrated over all range bins.
+- The learner summarized Demo 22 as showing that a simple MTI filter cannot handle more complex clutter, because complex clutter cannot be adequately described by a simple RD-map rule.
+- A new MATLAB Doppler clutter mask demo showed that excluding `|v| <= 5 m/s` after CFAR removes low-Doppler clutter reports but also suppresses a true `2 m/s` slow target from the final report list.
+- When asked why the raw-CFAR-detected `2 m/s` target is not reported in Demo 23, the learner answered that detections between about `-5` and `+5 m/s` are manually masked out.
+- The learner stated that Demo 23 is understood and asked what comes next.
+- A new MATLAB clutter-map demo averaged target-free historical after-MTI RD maps, compared the current frame against the learned background with a surprise ratio, and showed that a `2 m/s` slow target suppressed by fixed Doppler masking can be recovered as new low-Doppler evidence.
+- The learner asked for Demo 24's goal and overall code logic, indicating a need to connect history-frame generation, clutter-map averaging, current-frame processing, surprise ratio, and masks.
+- The learner summarized clutter maps as using many assumed target-free historical RD maps to compute a mean background value for each cell, then comparing a new RD map to that background with `RD_map_new / clutter_map`.
+- The learner asked whether clutter-map methods are used in real radar and when they fail.
+- The learner proposed that clutter-map failure scenarios may be addressable with deep learning and asked to formulate this as a research idea in the `research_idea` directory.
 
 ## Follow-up Questions to Ask
 
@@ -223,10 +300,22 @@
 - Ask the learner which demo_15 detection-list rows should be forwarded automatically to a tracker and which should be filtered or caveated, and why.
 - Ask the learner to predict what would happen to a weaker target if design `Pfa` were reduced from `1e-3` to `1e-7`.
 - Ask the learner to explain why a stricter design `Pfa` shifts the `Pd` curve to the right, and what operational tradeoff that creates.
+- Ask the learner which target is most dangerous after MTI plus CFAR: the strong stationary clutter, the `30 m/s` moving target, or the `1 m/s` slow target, and why.
+- Ask the learner to predict how a two-pulse MTI velocity-response curve should look near `0 m/s`.
+- Ask the learner why the `1 m/s` target can lose `27.44 dB` of absolute power yet still pass CFAR in Demo 20.
+- Ask the learner what would likely happen to the `1 m/s` target if its amplitude were reduced or the post-MTI background/noise threshold were higher.
+- Ask the learner to read Demo 21's bottom-left CFAR-margin plot: which velocities are below threshold after MTI, which are above, and why does the curve rise with velocity?
+- Ask the learner how the detection boundary would move if target amplitude were reduced, PRF changed, or a different MTI filter were used.
+- Ask the learner to compare Demo 22's top and bottom rows: why does the stationary clutter row become clean after MTI, while the Doppler-spread clutter row keeps residual low-Doppler detections?
+- Ask the learner why a single deep notch at `0 m/s` cannot remove clutter spread across `-3` to `+3 m/s` without also risking slow-target loss.
+- Ask the learner to explain why Demo 23's slow target can be raw-CFAR detected but not reported after the Doppler clutter mask.
+- Ask the learner what would happen if the clutter mask half-width changed from `5 m/s` to `2 m/s` or `8 m/s`.
+- Ask the learner to explain why the `2 m/s` target appears in Demo 24's clutter-map surprise mask even though it lies inside the fixed Doppler-mask band.
+- Ask the learner what failure mode would occur if the historical clutter map included the slow target for many frames.
 
 ## Next Recommended Learning Step
 
-- Add CFAR before/after MTI to show how clutter suppression changes the detector's false alarms and target detectability, then discuss slow-target loss near the MTI notch.
+- Next, refine the deep-learning clutter-map research idea into an executable Demo 25 plan: a drifting Doppler-spread clutter simulation comparing static clutter map, fixed Doppler mask, and a lightweight temporal background predictor at fixed empirical `Pfa`.
 
 ## Update History
 
@@ -300,3 +389,24 @@
 | 2026-06-12 | Environment-learned detection idea | Proposed learning environment/clutter distributions from prior or online radar data to improve detection beyond single-frame CFAR estimates, first validated with simulation. | Recorded a promising research direction and the need to preserve calibrated `Pfa`/ROC evaluation when using learned models. |
 | 2026-06-12 | Stationary clutter Doppler intuition | Predicted that stationary clutter appears near the zero-Doppler bin because its radial velocity is approximately zero. | Recorded readiness to move from CFAR-only detection into clutter ridge and MTI/Doppler filtering. |
 | 2026-06-12 | Stationary clutter and MTI demo | Built and ran `demo_19_stationary_clutter_mti.m`; stationary clutter formed a zero-Doppler ridge and two-pulse MTI suppressed zero-Doppler power by about `73.99 dB` while preserving the `30 m/s` target. | Recorded visual/numerical evidence that stationary clutter is a slow-time problem and that MTI is a Doppler high-pass/notch filter before detection. |
+| 2026-06-15 | MTI slow-target tradeoff | Answered that two-pulse MTI suppresses stationary clutter, preserves a `30 m/s` target, and may also suppress a `1 m/s` slow target. | Recorded correct qualitative understanding that MTI helps CFAR by reducing zero-Doppler clutter but can reduce detectability for slow targets near the notch. |
+| 2026-06-15 | MTI plus CFAR diagnosis | Chose the combined explanation for a missed `1 m/s` target after MTI plus CFAR: check both MTI attenuation and CFAR threshold strictness by comparing pre/post-MTI target-cell energy. | Recorded processing-chain debugging intuition for missed detections after clutter suppression. |
+| 2026-06-15 | CFAR before/after MTI demo | Built and ran `demo_20_cfar_before_after_mti.m`; detected CUTs fell from `703` to `55`, zero-Doppler detections from `322` to `8`, stationary clutter was removed, the `1 m/s` target lost `27.44 dB` but still passed CFAR, and the `30 m/s` target remained strong. | Recorded the nuanced result that MTI reduces zero-Doppler clutter and slow-target energy, while final detection depends on the post-MTI statistic-to-threshold margin. |
+| 2026-06-15 | Demo 20 code reading | Summarized Demo 20 as baseline/signal-model parameters, CFAR parameters, derived waveform/performance values, echo synthesis with target/clutter/noise, and matched filter -> MTI -> Doppler FFT -> CFAR processing. | Recorded strong code-level understanding of how the simulation scenario maps into the radar processing pipeline. |
+| 2026-06-15 | Truth-cell CFAR margins | Explained the `1 m/s` slow target can still pass after MTI because local CFAR threshold around that target can be low, but asked for clarification on how the truth-cell margin figure is made. | Recorded correct statistic-versus-local-threshold intuition and a specific visualization/code-reading gap about the margin plot. |
+| 2026-06-15 | Detection statistic meaning | Asked whether `statistic` means the CUT power value. | Clarified that Demo 20's CFAR statistic is `rdPower(r,dBin)`, while the truth-cell summary uses the maximum RD power in a small neighborhood around each truth point. |
+| 2026-06-15 | MTI slow-target velocity sweep | Built and ran `demo_21_mti_slow_target_velocity_sweep.m`; after-MTI CFAR missed `0` and `0.1 m/s`, first detected at `0.25 m/s`, and measured target power loss followed the theoretical MTI notch response. | Recorded concrete evidence that slow-target loss is a velocity-dependent margin problem, not a binary rule that all slow targets disappear. |
+| 2026-06-15 | Demo 21 margin interpretation | Explained that `0` and `0.1 m/s` targets fall below the after-MTI CFAR threshold because the MTI filter attenuates their near-zero-Doppler power too strongly. | Recorded correct interpretation of the MTI notch as a velocity-dependent loss that affects the final statistic-to-threshold margin. |
+| 2026-06-15 | Doppler-spread clutter demo | Built and ran `demo_22_doppler_spread_clutter_mti.m`; stationary clutter had `58.24 dB` low-Doppler suppression and `0` low-Doppler after-MTI CFAR detections, while Doppler-spread clutter had only `22.56 dB` low-Doppler suppression and `323` low-Doppler after-MTI CFAR detections. | Recorded that MTI works best for exact zero-Doppler clutter, while Doppler-spread clutter leaks through the notch and complicates CFAR. |
+| 2026-06-15 | Demo 22 clarification request | Asked for the goal of Demo 22 and the overall code logic. | Recorded need to connect Doppler-spread clutter's teaching objective to the concrete scenario setup, processing chain, summary metrics, and plots. |
+| 2026-06-15 | Low-Doppler suppression metric | Asked how Demo 22 computes `low-Doppler suppression`. | Clarified that the metric integrates RD power over all ranges and Doppler bins with `abs(velocity) <= 5 m/s`, then reports `10*log10(before/after)` as a band-power suppression value. |
+| 2026-06-15 | Doppler profile plot meaning | Asked whether Demo 22's Doppler profile after MTI corresponds to a particular range bin. | Clarified that the plot sums after-MTI RD power over all range bins for each Doppler bin, so it is an all-range Doppler power profile rather than a single-range slice. |
+| 2026-06-15 | Demo 22 conceptual summary | Summarized Demo 22 as showing that simple MTI cannot handle more complex clutter because its RD-map behavior is not captured by a simple rule. | Recorded correct high-level understanding and added nuance that complex clutter can still have learnable/statistical structure, but a single fixed MTI notch is insufficient. |
+| 2026-06-15 | Doppler clutter mask tradeoff | Built and ran `demo_23_doppler_clutter_mask_tradeoff.m`; raw after-MTI CFAR had `405` detections including `365` low-Doppler detections, and a report-stage `|v| <= 5 m/s` mask reduced reportable detections to `40` but also removed a raw-detected `2 m/s` slow target from the final report list. | Recorded that Doppler clutter masks reduce residual clutter reports by creating an explicit low-speed blind zone, so detection and final reporting must be distinguished. |
+| 2026-06-15 | Demo 23 report mask interpretation | Explained that detections inside the low-Doppler mask band are manually removed, so the `2 m/s` target is not reported despite raw CFAR detection. | Recorded correct distinction between raw detection and final report filtering by a Doppler clutter mask. |
+| 2026-06-15 | Demo 23 consolidation | Stated that Demo 23 is understood and asked what comes next. | Marked the Doppler clutter mask tradeoff as stable and moved the next step toward clutter-map / historical-background modeling. |
+| 2026-06-15 | Clutter-map background subtraction demo | Built and ran `demo_24_clutter_map_background_subtraction.m`; raw after-MTI CFAR had `350` low-Doppler detections, fixed Doppler masking allowed `0` low-Doppler reports and missed the `2 m/s` slow target, while the clutter-map surprise mask detected the slow target with `21.91 dB` surprise over background. | Recorded that a historical background model can reduce persistent clutter without automatically imposing a complete low-speed blind zone, though its threshold is not yet full `Pfa` calibration. |
+| 2026-06-15 | Demo 24 clarification request | Asked for Demo 24's goal and code logic. | Recorded need to explain clutter-map background modeling as target-free historical RD averaging followed by current/background surprise detection. |
+| 2026-06-15 | Clutter-map core summary | Summarized clutter-map detection as averaging target-free historical RD maps to estimate each cell's background clutter, then computing `RD_map_new / clutter_map` on a new measurement. | Recorded correct core understanding, with caveats about target contamination, robust updates, and denominator flooring in practical systems. |
+| 2026-06-15 | Clutter-map operational question | Asked whether clutter-map methods are used in real radar and when they do not work. | Recorded the next concept: clutter maps are useful when background statistics are stable and well registered, but fail under nonstationary clutter, target contamination, scene changes, and calibration/motion errors. |
+| 2026-06-15 | Deep-learning clutter-map research idea | Proposed using deep learning to address clutter-map failure scenarios and asked to formulate the idea in `research_idea`. | Created `deep_learning_clutter_map_failure_modes.md` as a simulation-first proposal focused on temporal/context-conditioned clutter-background modeling with calibrated false-alarm control. |
