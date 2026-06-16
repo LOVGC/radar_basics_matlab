@@ -1,479 +1,254 @@
-# Learner Current Understanding
+# Learner Current Understanding — Compact
 
-## Current Topic and Stage
+> Source: uploaded learner-model markdown, compacted on 2026-06-16.
 
-- Current curriculum topic: Return to `radar_teaching_plan.md` Week 5 environment complexity; move from clutter modeling to jammer/interference effects.
-- Current learning stage: Clutter and clutter-map modeling have been explored enough for now; next learning segment should focus on jammer scenarios, especially sidelobe versus mainlobe interference and beamformer robustness.
-- Last updated: 2026-06-16
+## 1. Current stage
 
-## Concepts the Learner Seems to Understand
+The current radar-learning path is moving from **clutter / clutter-map modeling** into **jammer and interference scenarios**, especially:
 
-- Correctly maps target range/delay to `fast time`, target velocity/Doppler to `slow time`, and target angle/spatial phase to `array element`.
-- Understands that fixing `fast time` and `array element` leaves a slow-time vector whose phase varies with target radial velocity.
-- Understands that array geometry creates element-to-element delay differences, visible as spatial phase differences across array elements.
-- Understands that the single-target continuous-time received signal, vector form, and data-cube form are different representations of the same underlying array echo, rather than separate physical models.
-- Understands range, Doppler, and angle processing as matched-filter/projection operations against delay, slow-time sinusoid, and spatial steering templates.
-- Correctly predicts that increasing LFM bandwidth narrows the matched-filter range peak and that increasing pulse count improves Doppler/velocity bin spacing.
-- Correctly predicts that two targets separated by less than the approximate range resolution tend to merge into one range peak, while increasing bandwidth makes them easier to separate.
-- Understands that larger target separation makes two range responses easier to distinguish, especially when separation exceeds the nominal range-resolution scale.
-- Understands that targets separated only slightly beyond nominal range resolution can still have strongly overlapping matched-filter mainlobes, producing partial rather than clean separation.
-- Correctly predicts that two targets separated by 2 m/s will strongly overlap in Doppler for `Np = 64`, and will still overlap substantially for `Np = 128`.
-- Correctly computes that about `Np = 300` pulses are needed to make velocity bin spacing roughly `0.5 m/s` at `fc = 10 GHz` and `PRF = 10 kHz`.
-- Correctly predicts that increasing PRF decreases maximum unambiguous range and increases maximum unambiguous velocity.
-- Correctly recognizes that a target velocity beyond the unambiguous velocity interval will Doppler-alias/wrap rather than appear at its true velocity.
-- Correctly computes a simple aliased velocity by subtracting the velocity period, e.g. `160 m/s -> 10 m/s` when the velocity period is about `150 m/s`.
-- Understands ambiguity as an aliasing problem: sampling makes spectra repeat/shift, and if the repeated copies overlap or map multiple physical parameters to the same sampled phase progression, the original physical value cannot be uniquely recovered.
-- Correctly identifies that a broadside ULA target has zero element-to-element phase shift and an all-ones steering vector under the normalized convention.
-- Correctly simplifies a nonzero ULA steering-vector phase progression: for `Delta phi = -pi/2`, the first four entries are `[1, -j, -1, j]`.
-- Correctly predicts that increasing ULA element count from `M = 8` to `M = 16` narrows the mainlobe and makes the sidelobe/null structure denser.
-- Has seen a MATLAB ULA beamforming scan where spatial matched filtering estimates a `20 deg` target at about `20.05 deg`.
-- Has seen a MATLAB grating-lobe comparison where `d = lambda/2` suppresses the `-30 deg` alias for a `30 deg` target, while `d = lambda` produces an equal-height grating lobe at `-30 deg`.
-- Has seen a full `x[fast time, slow time, array element]` MATLAB demo estimate range, velocity, and angle from a single target using matched filtering, Doppler FFT, and angle scan.
-- Correctly traces `demo_06` from raw data-cube synthesis through matched filtering, Doppler FFT, RD peak picking, and angle scan at the detected RD cell.
-- Correctly computes ULA spatial frequency `u = d*sin(theta)/lambda`; for `d = lambda/2` and `theta = 30 deg`, `u = 0.25`.
-- Has seen conventional ULA angle scan and spatial FFT estimate the same `30 deg` target by finding the same spatial frequency.
-- Understands that using `Nfft = 4096` for a 16-element spatial FFT is zero-padding/interpolation of the spatial spectrum, not an increase in true angle resolution.
-- Understands the unified Fourier/aperture view: range, Doppler, and angle processing map data to frequency-like coordinates whose peaks correspond to physical parameters.
-- Understands that physical resolution is tied to measurement support/aperture: waveform bandwidth for range, CPI duration for Doppler, and array aperture/element count for angle.
-- Has seen an angle-resolution demo where increasing `Nfft` from 16 to 4096 smooths/interpolates the spectrum, while increasing `M` from 16 to 32 actually narrows the mainlobe and improves physical angular separation.
-- Correctly infers that, in ideal MUSIC, two uncorrelated targets correspond to a two-dimensional signal subspace.
-- Correctly computes MUSIC subspace dimensions from `M` array elements and `K` sources, e.g. `M = 16`, `K = 3` gives signal subspace dimension 3 and noise subspace dimension 13.
-- Has seen a minimal MUSIC demo where covariance eigendecomposition separates two signal eigenvectors from a 14-dimensional noise subspace for `M = 16`, `K = 2`.
-- Has seen MUSIC resolve two close angular targets at `20 deg` and `28 deg` more sharply than conventional beamforming under ideal assumptions.
-- Correctly understands the core MVDR intuition: conventional beamforming does not actively null a strong off-angle jammer, while MVDR uses covariance information to place a null in the interference direction under a distortionless target constraint.
-- Has seen a minimal MVDR jammer-nulling demo where both conventional and MVDR keep `20 deg` look gain at `0 dB`, but MVDR suppresses a `-30 deg` jammer much more deeply.
-- Correctly understands that fewer snapshots / less reliable covariance estimates call for larger diagonal loading to make MVDR less aggressive and more stable.
-- Has seen an MVDR diagonal-loading sweep where small loading forms a deep jammer null and very large loading makes the null shallower and more conventional-like.
-- Understands that MUSIC and MVDR depend on training snapshots/covariance quality and are less plug-and-play than conventional beamforming because they rely on modeling assumptions and tuning choices.
-- Understands that CFAR is not specific to range-Doppler maps; it can operate on any detection statistic map/cube such as range profiles, RD maps, RA maps, DA maps, or RDA tensors.
-- Has seen a 1D CA-CFAR demo on a matched-filter range profile, including CUT-level thresholding, guard cells, training cells, target detection, and contiguous detection clustering.
-- Understands detection as a mapping from a 1D/2D/3D detection-statistic tensor to a same-shape binary mask tensor indicating candidate target cells.
-- Has seen a 2D CA-CFAR demo on a range-Doppler map that outputs a same-shape binary detection mask and strongest detection estimate.
-- Has seen a Monte Carlo CFAR metrics demo estimating empirical `Pfa` from noise-only trials and empirical `Pd` from target-present trials across an SNR sweep.
-- Understands the Monte Carlo framing for CFAR metrics: one random trial generates a detection-statistic profile, CFAR tests each valid CUT using local training cells to estimate a random threshold, and repeated trials estimate `Pfa`/`Pd` as empirical frequencies.
-- Correctly analogizes radar detection to anomaly detection: CA-CFAR flags cells that deviate significantly from a locally estimated background model built from training cells.
-- Understands that adjacent positive CFAR cells should not automatically be counted as separate targets; postprocessing must consider connectedness, peak structure, and whether close targets may be unresolved or partially merged.
-- Correctly identifies that two local maxima inside one CFAR component with range separation below nominal range resolution should be treated conservatively as unresolved/ambiguous rather than confidently split, because the peaks may be sidelobes or unresolved close targets.
-- Correctly uses statistic-to-threshold margin as evidence for detection-report reliability; a detection far above threshold is generally more trustworthy than one barely crossing threshold.
-- Correctly distinguishes detection energy from CFAR calibration reliability: a high statistic-to-threshold detection near the RD-map edge still needs a caveat if training cells are incomplete and the threshold estimate may be biased or poorly calibrated.
-- Has seen a 2D CFAR detection-list demo convert 28 detected CUTs into 6 connected components, with one strong target report and several weak near-threshold review candidates.
-- Correctly interprets Demo 15's CFAR mask visualization: white cells are CFAR-positive candidate cells, yellow markers indicate component peak locations, and a high `statisticToThreshold` makes the main target report much more reliable than weak near-threshold components.
-- Has seen a design-`Pfa` sweep on the same RD map: lowering `Pfa` from `1e-3` to `1e-7` increased the CA-CFAR threshold scale `alpha`, reduced detected CUTs/components/review candidates, and still detected the strong target in this scenario.
-- Correctly explains the CFAR design-`Pfa` tradeoff: smaller `Pfa` raises the detection threshold, creates a stricter target-declaration standard, reduces point detections, and makes weak low-SNR targets more likely to be missed.
-- Has seen ROC-style Monte Carlo curves where lower design `Pfa` shifts the `Pd` versus SNR curve to the right: stricter thresholds require higher target SNR to reach the same detection probability.
-- Correctly understands Demo 17 as estimating empirical `Pd` over a grid of `(SNR, design Pfa)` settings using repeated target-present Monte Carlo trials, so the experiment samples the mapping `(SNR, Pfa) -> Pd`.
-- Understands detector evaluation as context-dependent rather than a single scalar score: for a specified detector and environment, `Pd` should be interpreted together with SNR and design/empirical `Pfa`.
-- Correctly recognizes the operational tradeoff: low-SNR targets make detection difficult, and for CFAR-like detectors a stricter false-alarm requirement raises threshold and usually reduces `Pd` for weak targets.
-- Correctly converts a system-level false-alarm budget into per-cell `Pfa`: if `1e6` tested cells can tolerate about `10` false alarms per CPI, the per-cell design `Pfa` should be about `1e-5`.
-- Correctly predicts that strong clutter contamination in CA-CFAR training cells biases the noise/clutter estimate upward, raises the threshold, and makes target misses more likely.
-- Has seen a 1D clutter-edge demo where a weak target before a 20 dB clutter step is missed by CA-CFAR because the high-clutter side contaminates the training average.
-- Correctly generalizes Demo 18: different CFAR-like detectors use different background/noise estimation rules, which create different `Pfa`/`Pd`/ROC behavior under nonhomogeneous clutter; no single simple CFAR variant is uniformly best across all clutter distributions.
-- Proposed a research direction: learn environment/clutter statistics from historical or online radar data, then use that learned distribution to improve detection beyond single-frame local CFAR estimates in complex backgrounds.
-- Correctly predicts that stationary clutter appears near the `0 m/s` Doppler bin in an RD map because its radial velocity is approximately zero and its slow-time phase is nearly constant.
-- Has seen a stationary-clutter RD demo where many zero-velocity scatterers form a vertical zero-Doppler clutter ridge, and a two-pulse MTI canceller suppresses that ridge while preserving a `30 m/s` moving target.
-- Correctly predicts that after two-pulse MTI, stationary clutter is suppressed, a `30 m/s` moving target is mostly preserved, and a slow `1 m/s` target may also be suppressed because it lies close to the MTI notch.
-- Correctly chooses a processing-chain diagnosis for a missed slow target after MTI plus CFAR: inspect both the CFAR threshold setting and the target-cell energy before/after MTI, rather than assuming only one cause.
-- Has seen a CFAR-before/after-MTI demo where detected CUTs drop from `703` to `55`, zero-Doppler detected CUTs drop from `322` to `8`, and zero-Doppler total power is suppressed by `56.60 dB`.
-- Has seen that the stationary clutter sample is removed by MTI plus CFAR: its CFAR margin drops from about `374` before MTI to about `0.086` after MTI.
-- Has seen that a `1 m/s` slow target can lose about `27.44 dB` of absolute RD power after two-pulse MTI while still being detected if the post-MTI local CFAR threshold also drops enough.
-- Has seen that a `30 m/s` target is preserved by two-pulse MTI in this scenario, with about `+1.41 dB` target-cell power change and a strong CFAR margin both before and after MTI.
-- Correctly reads Demo 20 as a point-scatterer signal model where targets and clutter scatterers use the same echo-generation mechanism, with clutter represented as many scatterers rather than a separate physical signal type.
-- Correctly separates code roles in Demo 20: baseline parameters define the radar/scenario/sampling setup, CFAR parameters define the detector configuration, derived values compute waveform/axis/performance quantities, echo synthesis creates target/clutter/noise data, and the processing chain is matched filtering, MTI, Doppler FFT, then CFAR.
-- Correctly reasons that the `1 m/s` target can remain CFAR-detected after MTI because its post-MTI local CFAR threshold can also be low, so detection depends on the statistic-to-threshold ratio rather than absolute target power alone.
-- Asked what `statistic` means in Demo 20; the answer is that the per-CUT CFAR statistic is `rdPower(r,dBin) = abs(rangeDoppler(r,dBin))^2`, while the truth-cell table/plot uses the local maximum RD power near each known truth point to tolerate bin mismatch.
-- Has seen a velocity-sweep demo where two-pulse MTI attenuation is strongest near zero velocity and relaxes as target radial velocity increases.
-- Has seen a low-amplitude target scenario where after-MTI CFAR misses `0 m/s` and `0.1 m/s` targets, then first detects the target at `0.25 m/s` because the post-MTI statistic-to-threshold margin rises just above 1.
-- Has seen measured target RD power change after MTI track the theoretical two-pulse MTI response: about `-48.15 dB` at `0.1 m/s`, `-39.28 dB` at `0.25 m/s`, `-26.66 dB` at `1 m/s`, and `+1.41 dB` at `30 m/s`.
-- Correctly explains Demo 21's after-MTI CFAR misses at `0` and `0.1 m/s`: the MTI filter attenuates those near-zero-Doppler target power values so much that the post-MTI statistic falls below the CFAR threshold.
-- Has seen a Doppler-spread clutter demo comparing exactly stationary clutter to clutter scatterers with velocities distributed near zero.
-- Has seen that two-pulse MTI suppresses exactly stationary clutter much more strongly than Doppler-spread clutter: zero-Doppler suppression was `79.32 dB` for stationary clutter versus `30.91 dB` for Doppler-spread clutter, and low-Doppler-band suppression was `58.24 dB` versus `22.56 dB`.
-- Has seen that Doppler-spread clutter creates many after-MTI low-Doppler CFAR detections: `0` low-Doppler detected CUTs for stationary clutter versus `323` for Doppler-spread clutter in Demo 22.
-- Asked how Demo 22 computes low-Doppler suppression; the metric sums RD power over all range bins and Doppler bins with `abs(velocity) <= 5 m/s`, then computes `10*log10(lowBefore/lowAfter)`.
-- Asked how Demo 22's Doppler profile after MTI is made; it sums `rdPowerAfter` over the range dimension for each Doppler bin, normalizes by the maximum, and plots the all-range Doppler power profile.
-- Correctly summarizes Demo 22 as showing that a simple MTI filter cannot fully handle more complex clutter whose RD-map structure is not captured by the simple exact-zero-Doppler rule.
-- Has seen a Doppler clutter mask demo where raw after-MTI CFAR produced `405` detected CUTs, including `365` low-Doppler detected CUTs, but applying a report-stage `|v| <= 5 m/s` mask reduced reportable detections to `40` and low-Doppler reports to `0`.
-- Has seen the main Doppler-mask tradeoff: a `2 m/s` slow target had a strong raw CFAR margin (`228.51`) and was detected before the report mask, but was not reported because it lay inside the low-Doppler clutter mask; a `12 m/s` target remained reported.
-- Correctly explains that Demo 23's `2 m/s` target is not reported because detections inside the low-Doppler mask band, approximately `-5` to `+5 m/s`, are manually suppressed after raw CFAR.
-- States that Demo 23 is understood, indicating the distinction between raw CFAR detection and final report-stage filtering is stable enough to move on.
-- Has seen a clutter-map demo where `20` target-free historical RD maps are averaged into a learned background map, then the current RD map is compared against that map using `currentPower / (clutterMap + floor)`.
-- Has seen that the fixed Doppler mask still removes the `2 m/s` slow target, while the clutter-map surprise detector recovers it because it is new relative to the learned background: slow-target surprise was `21.91 dB` above background with a `12 dB` threshold.
-- Has seen Demo 24 reduce low-Doppler clutter differently from the fixed mask: raw after-MTI CFAR produced `350` low-Doppler detections, the fixed Doppler mask allowed `0` low-Doppler reports, while the clutter-map surprise mask produced `8` low-Doppler surprise cells including the slow target.
-- Asked what Demo 24 is intended to show and how the code's overall logic is organized.
-- Correctly summarizes Demo 24's clutter-map core as: collect target-free historical RD maps, average them to estimate each cell's background clutter level, then compute `RD_map_new / clutter_map` to find cells that are unusually strong relative to their history.
-- Asked whether clutter maps are used in real radar systems and when the method does not work, showing readiness to connect the demo to operational assumptions and failure modes.
-- Formulated a research direction: use deep learning to address clutter-map failure modes such as nonstationary clutter, target contamination, registration error, and complex Doppler-spread clutter while preserving calibrated false-alarm control.
-- Understands that the deep-learning opportunity is not simply "replace CFAR," but to learn a richer `history -> current background distribution` model and evaluate detections at fixed empirical `Pfa`.
-- Correctly predicts that if a clutter ridge drifts from its historical Doppler location to about `3 m/s`, a static clutter-map surprise ratio will flag the new clutter ridge location as surprising background, increasing empirical `Pfa` on target-absent frames.
-- Correctly explains the temporal clutter-map window tradeoff: a small recent-history window `K` tracks clutter drift faster but is more likely to absorb a real slow target into the background estimate, while a large `K` adapts more slowly but is less sensitive to short target-present contamination.
-- Favors robust background estimation such as median/quantile updates over simple mean updates because it can reduce target contamination without relying only on hard exclusion rules or perfectly target-free calibration data.
-- Correctly predicts that a recent-`K` median clutter map begins to absorb a persistent target once the target contaminates more than half of the window, approximately when target persistence `T > K/2`.
-- Has a new Demo 25 artifact showing that recent mean adapts quickly but absorbs a persistent slow target early, recent median resists longer with a sharp absorption transition near `K/2`, and a lower quantile resists contamination longer but requires a higher calibrated surprise threshold.
-- Correctly recognizes that a low quantile such as q10 is robust against high-power target contamination, but would not be robust against low-power shadow/gap anomalies because the anomaly lies in the same lower tail that the estimator uses.
-- Correctly reasons that, for two cells with the same mean background power and the same current power, the cell with smaller variance/narrower target-free background distribution is more anomalous because the observation is less expected under that cell's background model.
-- Correctly summarizes CFAR, clutter maps, temporal background maps, and robust quantile/median maps as variants of a statistical detection framework: model or estimate target-free clutter/background behavior, compute a detection statistic or score on a new measurement, set/calibrate a threshold, and evaluate `Pfa`/`Pd`.
-- Correctly recognizes that Demo 25 is not running a sliding-window CFAR detector, but is using `surprise_dB = 10*log10(currentPower / (backgroundMap + floor))` as a calibrated anomaly score for threshold-based cell classification.
-- Correctly questions why Demo 25 pools all calibration-frame cells into one `calibrationScores` vector, revealing readiness to distinguish per-cell anomaly scores from global, pooled, and cell-specific threshold calibration.
-- Correctly summarizes Demo 25 as an anomaly-detection framework: generate target-free RD maps, estimate a background/clutter map from a history sequence, compute a surprise score on a new RD map, calibrate a threshold from target-free score samples, then classify cells as background-like or anomalous.
-- Correctly identifies static mean, recent mean, recent median, and recent q25 as different estimators for the predicted clutter-only RD map, roughly mapping `21` historical RD maps to one current-background estimate.
-- Formulates a strong research motivation from Demo 25: hand-designed clutter-map estimators require manual choices such as update window, quantile level, and threshold calibration, while representation learning might learn richer clutter-shift dynamics from history.
-- Has consolidated the Demo 25 insight into a standalone bilingual research note framing `RD_history -> learned temporal representation -> calibrated anomaly score` as a possible path beyond handcrafted clutter-map updates.
-- Asked to preserve the point-estimate versus distributional clutter-model abstraction in the project KB, including the three learned-model levels: predicted mean background, background plus uncertainty, and full H0 distribution / tail probability.
+- sidelobe jammer versus mainlobe jammer,
+- conventional beamforming versus adaptive beamforming,
+- MVDR robustness,
+- broadband / tone / narrowband interference effects.
 
-## Understanding Gaps / Misconceptions
+Clutter modeling has been explored enough for now. The next useful step is a focused jammer/interference segment.
 
-- Needs more practice connecting these phase progressions to actual plots: matched-filter output, Doppler FFT bins, and angle spectrum peaks.
-- Needs to keep the representation levels distinct: `x_{m,n,p}(t)` is a continuous-time per-element/per-pulse signal, while vector and data-cube forms arise after stacking across array elements and/or sampling/matched filtering into range bins.
-- Needs to be careful about conjugation/sign conventions in matched filtering, Doppler FFT, and beamforming templates.
-- Should distinguish the mechanisms behind range and Doppler resolution: bandwidth controls delay/range resolution, while CPI duration controls Doppler/velocity resolution.
-- Should remember that `Delta R = c/(2B)` is an approximate resolution scale, not a hard threshold; visible separation also depends on waveform shape, sampling, windowing, sidelobes, SNR, and relative target amplitudes.
-- May be slightly too conservative about separations just above nominal range resolution; a separation larger than `Delta R` can produce visible separation even when the peaks are not cleanly split.
-- Needs to distinguish Doppler resolution from unambiguous velocity: increasing `Np` at fixed PRF improves resolution, while increasing PRF expands the unambiguous Doppler interval.
-- Needs practice connecting element count and aperture to beamwidth / angle resolution.
-- Needs to connect element spacing to spatial aliasing / grating lobes after seeing the basic angle scan.
-- Needs to distinguish true target peaks from sidelobes, noise peaks, and grating lobes in an angle spectrum.
-- Should note that increasing element count with uniform weights mainly narrows beamwidth; sidelobe relative levels depend strongly on aperture weighting/windowing.
-- Needs to keep angle-domain conventions explicit: `theta = 150 deg` has the same sine as `30 deg`, but with the current broadside scan interval `[-90, 90]`, the `d = lambda` grating lobe for a `30 deg` target appears near `-30 deg`.
-- Should next connect grating lobes to the spatial sampling condition `d <= lambda/2` and compare them against ordinary sidelobes.
-- Should next practice reading the code path from raw cube to detected target: `rx -> matchedOut -> rangeDopplerAngle -> arraySnapshot -> beamResponse`.
-- Should distinguish the economical detected-cell angle scan used in `demo_06` from a full range-Doppler-angle cube, which would scan/beamform every RD cell.
-- Should remember the sign convention in `demo_07`: because steering uses `exp(-j2*pi*m*u)`, the spatial FFT is applied to `conj(arraySnapshot)` so the plotted peak appears at positive `u`.
-- Should distinguish FFT display grid density from physical resolution: increasing `Nfft` interpolates the spectrum, while increasing `M`/aperture narrows the mainlobe.
-- Should phrase the Fourier duality carefully: FFT is the computational projection/display method, while bandwidth, CPI length, and aperture determine the physical response width.
-- Should next connect conventional FFT/beamforming limits to why MUSIC/MVDR can improve estimation or interference rejection under stronger assumptions.
-- Needs to distinguish the number of snapshots from subspace dimension: snapshots improve covariance estimation quality, while ideal noise-subspace dimension is `M-K` for `M` array elements and `K` sources.
-- Ready to see MUSIC implemented as covariance estimation, eigendecomposition, noise-subspace extraction, and pseudospectrum scanning.
-- Should remember MUSIC requires stronger assumptions than conventional beamforming: known/estimated source count, enough snapshots, uncorrelated or decorrelated sources, and a good array calibration/model.
-- Ready to see MVDR implemented as `w = R^{-1}a/(a^H R^{-1}a)` and compare its pattern against conventional steering weights in a jammer scenario.
-- Should distinguish MVDR look-direction weights from the Capon/MVDR spectrum: the former forms a beam with a distortionless constraint, while the latter scans covariance power and can peak at the jammer direction.
-- Should be able to explain the visual diagonal-loading tradeoff: small loading trusts covariance strongly, while large loading makes MVDR more conservative and conventional-like.
-- Needs to connect diagonal-loading choice to practical covariance quality, steering mismatch, and robustness requirements.
-- Should use the term "diagonal loading" rather than "diagonal overloading."
-- Needs to learn how CFAR training cells, guard cells, and CUT neighborhoods should be designed differently for 1D, 2D, and 3D detection products.
-- Needs to connect CA-CFAR parameters to behavior: more guard cells protect against target leakage, more training cells smooth the noise estimate, and `Pfa` controls threshold scaling under model assumptions.
-- Should distinguish the cell-level binary detection mask from the post-processed detection list, where adjacent positive cells are clustered and converted into target reports.
-- Needs to learn 2D detection-mask postprocessing: connected-component clustering, peak selection within each cluster, and converting cells to range/velocity reports.
-- Needs practice deciding when one connected CFAR blob should become one detection versus multiple detections, using evidence such as multiple local maxima, expected resolution, waveform/array response width, amplitudes, and tracker context.
-- Should extend unresolved-target reasoning from range-only resolution to the full 2D/3D response: targets may be range-unresolved but Doppler- or angle-resolved if they are sufficiently separated along those dimensions.
-- Should remember that cluster size is contextual rather than monotonic evidence of confidence: a large cluster can mean a strong/extended response, but can also indicate clutter, merging, sidelobe spread, or unresolved targets.
-- Should continue treating detection report confidence as a combination of evidence strength and validity of the local thresholding assumptions, including edge effects and training-cell availability.
-- Needs practice deciding which detection-list entries should be forwarded to a tracker automatically versus kept as review/caveat candidates, especially when `statisticToThreshold` is only slightly above 1.
-- Needs to keep the binary-mask visualization concrete: white pixels/cells mean CFAR-positive cells (`mask = 1`), black pixels/cells mean not detected or not tested/false (`mask = 0`), and plotted markers/boxes are overlays from postprocessing rather than the mask values themselves.
-- Should phrase white CFAR cells as candidate target evidence rather than confirmed targets; confirmation/reliability comes later from clustering, peak selection, threshold margin, caveats, and tracker context.
-- Needs to connect the clutter-edge result back to detector design choices: CA-CFAR is well calibrated in homogeneous backgrounds, but nonhomogeneous training cells can bias thresholds and motivate GO/SO/OS-CFAR variants.
-- Should understand GO/SO/OS-CFAR as robust background estimators matched to different clutter assumptions, not arbitrary threshold tricks; each improves one failure mode while creating another tradeoff.
-- Should next distinguish "learning a better background/clutter model" from "losing false-alarm calibration": any learned detector still needs calibrated thresholds, held-out environment tests, and ROC/Pfa validation.
-- Needs to connect MTI output to detection: after clutter suppression, CFAR should run on a less clutter-dominated RD map, but MTI also changes noise/clutter statistics and attenuates slow targets near zero Doppler.
-- Should keep design `Pfa` distinct from empirical `Pfa`: design `Pfa` sets the CFAR threshold, while empirical `Pfa` is estimated separately from noise-only Monte Carlo trials.
-- Should phrase the SNR/Pfa/Pd relation carefully: SNR does not directly make `Pfa` low; rather, high SNR lets a detector maintain high `Pd` even when the chosen design `Pfa` is strict.
-- Asked for a deeper explanation of ROC thinking; next teaching should distinguish classic ROC curves from Demo 17's ROC-style Pd-vs-SNR family and connect both to operating-point selection.
-- Should refine the automation motivation for detection: beyond high data rates, the key value of detection algorithms is quantifiable and controllable error statistics such as analytic `Pfa` control and ROC analysis, which human operators cannot provide to a downstream tracker.
-- Should note that "rule-based" understates CFAR: CA-CFAR thresholds are derived from hypothesis-testing models (e.g. exponential noise gives `alpha = N*(Pfa^{-1/N} - 1)` on the training mean), so performance degradation is predictable when model assumptions break, which motivates GO/SO/OS-CFAR variants.
-- Should distinguish statistical/model-based detection thresholds from more heuristic detection-list postprocessing rules such as clustering, peak splitting, merge criteria, and unresolved-target labeling.
-- Should practice applying the aliasing/ambiguity framework separately to each radar dimension: range ambiguity from delay modulo PRI, Doppler ambiguity from slow-time sampling at PRF, and spatial ambiguity/grating lobes from element spacing above the spatial Nyquist limit.
-- Should next quantify the MTI notch: slow targets are not simply "kept" or "removed"; their attenuation depends on Doppler frequency / radial velocity, PRF, wavelength, and the MTI filter response.
-- Should practice diagnosing missed detections by comparing target statistic, CFAR threshold, and pre/post-clutter-suppression energy at the same range-Doppler cell.
-- Should distinguish absolute target energy loss from CFAR detectability: MTI can reduce target power and also change the local background/threshold, so the final detection depends on the statistic-to-threshold margin after filtering.
-- Should remember that "clutter as many point scatterers" is a useful simulation approximation; real clutter can be distributed, correlated, Doppler-spread, and nonstationary rather than literally isolated ideal points.
-- Needs to keep the general term "detection statistic" distinct from this demo's specific choice: here it is RD power, but other detectors may use amplitude, log power, beamformed power, noncoherent integration, likelihood ratios, or learned scores.
-- Should interpret a `0 dB` CFAR margin as exactly at threshold: above `0 dB` means detected, below `0 dB` means missed, assuming the cell is tested and the local threshold is valid.
-- Should remember that the slow-target detectability boundary is scenario-dependent; it moves with target amplitude/RCS, noise, clutter, PRF, wavelength, MTI filter choice, CFAR parameters, and local training-cell statistics.
-- Should distinguish a narrow zero-Doppler clutter ridge from a Doppler-spread clutter ridge: MTI has a deep notch only at exact zero Doppler, so clutter energy away from zero can survive.
-- Should next connect Doppler-spread clutter to CFAR calibration problems: residual clutter can raise local thresholds, create false detections, or obscure slow targets.
-- Needs to explicitly connect Demo 22's implementation structure to its teaching goal: compare exact zero-Doppler clutter with clutter whose scatterer velocities are spread around zero, then observe MTI residuals and CFAR detections.
-- Should keep zero-Doppler suppression and low-Doppler-band suppression distinct: the former uses only the Doppler bin closest to `0 m/s`, while the latter sums a velocity band such as `[-5, +5] m/s`.
-- Should distinguish a single-range-bin Doppler cut from an all-range Doppler profile: Demo 22's rightmost profile uses `sum(rdPowerAfter, 1)`, so it shows total after-MTI power per Doppler bin across all ranges.
-- Should refine the phrasing "cannot be described by a simple rule": complex clutter may still have statistical or physical structure, but a single fixed notch/rule is too simple to model and suppress it robustly.
-- Should distinguish detection from reporting: in Demo 23 the slow target is detected by raw CFAR, but the report-stage Doppler mask suppresses it from the final report list.
-- Should understand a Doppler clutter mask as a policy/operating-mode choice, not a magical clutter remover: it reduces low-Doppler false reports by creating a low-speed blind zone.
-- Should distinguish fixed exclusion rules from learned background models: a clutter map uses historical per-cell statistics and can preserve a new low-speed target if it is unusual relative to that cell's background.
-- Should remember that Demo 24's surprise threshold is a simple illustrative threshold, not yet a fully calibrated `Pfa`-controlled detector; proper deployment would need validation, update rules, and target-contamination safeguards.
-- Should learn the risk of clutter-map adaptation: if a target stays in the scene and the background map updates too aggressively, the target can be absorbed into the clutter map.
-- Should not dismiss detection-gated updates or target-free calibration frames as merely ad hoc: in radar systems they can be principled engineering safeguards when tied to empirical `Pfa`, track logic, and validation under target-present contamination.
-- Needs to explicitly connect Demo 24's implementation structure to its teaching goal: target-free history builds a per-cell background map, the current frame adds new targets, and the detector compares current RD power against historical background.
-- Should refine the "assume no target" phrasing: Demo 24 uses target-free history for clarity, but practical clutter maps need track/exclusion logic, robust averaging, or slow update rates because history can contain real targets.
-- Should remember the denominator in Demo 24 is `clutterMap + backgroundFloor`, not just `clutterMap`, to avoid unstable ratios in very low-background cells.
-- Needs to connect clutter-map validity to stationarity and registration assumptions: the same map cell must correspond to the same physical background over time, and the background statistics must change slowly enough to estimate.
-- Should next distinguish possible learned outputs: background prediction, uncertainty map, calibrated anomaly score, or threshold correction.
-- Should keep the main research constraint explicit: any deep-learning detector must be evaluated with empirical `Pfa`, `Pd`, false alarms per CPI, and ROC-style operating points rather than accuracy alone.
-- Needs to correct quantile-map intuition for high-power target contamination: lowering the background quantile from q25 to q10 usually makes the estimator more resistant to high outliers, but also raises target-free surprise scores and therefore requires a higher calibrated threshold.
-- Needs to distinguish two heavy-tail risks for mean/std z-score detectors: heavy-tail spikes can inflate `std` and reduce weak-target `Pd`, while Gaussian-tail threshold assumptions can underpredict false alarms and make empirical `Pfa` too high.
-- Should refine the phrase "know the clutter distribution": practical radar detectors usually assume, estimate, or learn the target-free background distribution/statistics; the unknown clutter/background parameters are nuisance quantities estimated before or inside the hypothesis test.
+---
 
-## Evidence From Learner Responses
+## 2. Stable core understanding
 
-- When asked which tensor dimension changes for target distance, speed, and angle, the learner answered: "1. fast time 2. slow time 3. array element."
-- The learner explained that fixing fast time and array element gives a slow-time vector whose phase changes with radial velocity, and that array geometry causes element-dependent delays reflected in phase.
-- The learner summarized that the "single-target continuous-time received signal" is the basic model and that the data cube and vector form describe the same thing: the whole array sensing a single-target signal.
-- The learner described Doppler processing, angle estimation, and range estimation as template matching operations over slow time, array elements, and fast time, respectively.
-- The learner predicted that changing `B` from 10 MHz to 20 MHz makes the range peak narrower, changing `Np` from 64 to 128 makes velocity estimation finer, and the target peak center should remain roughly unchanged.
-- The learner predicted that targets at 4000 m and 4008 m look like one peak for `B = 10 MHz`, and become easier to separate for `B = 20 MHz` because the nominal resolution is about 7.5 m.
-- For targets at 4000 m and 4020 m, the learner predicted that `B = 20 MHz` would likely resolve them, but that `B = 10 MHz` might still not resolve them; this was partly conservative because 20 m exceeds the 10 MHz nominal resolution of about 15 m.
-- The learner explained that at `B = 10 MHz`, a 20 m separation still looks imperfect because the 15 m nominal resolution means the targets are still close and their responses overlap.
-- The learner predicted that targets at 30 m/s and 32 m/s will overlap badly with `Np = 64`, and still overlap substantially with `Np = 128`.
-- The learner answered `300` when asked how many pulses are needed for velocity bin spacing below about `0.5 m/s` at `fc = 10 GHz` and `PRF = 10 kHz`.
-- The learner answered that doubling PRF makes maximum unambiguous range smaller and maximum unambiguous velocity larger.
-- The learner answered that a `90 m/s` target at `PRF = 10 kHz`, `fc = 10 GHz` would wrap to another velocity, but guessed it might be around `20 m/s`; the correct shifted-FFT alias is near `-60 m/s`.
-- The learner correctly answered that a `160 m/s` target aliases to about `10 m/s` when the velocity period is about `150 m/s`.
-- For a ULA broadside target with `theta = 0 deg`, the learner answered that element-to-element phase difference is zero and the steering vector is constant/all ones.
-- For `d = lambda/2` and `theta = 30 deg`, the learner answered `pi*d/lambda`; this partly applied `sin(30)=0.5` but missed the negative sign and did not finish substituting `d = lambda/2`.
-- After correction that `Delta phi = -pi/2`, the learner correctly simplified the first four steering-vector entries as `[1, -j, -1, j]`.
-- A new MATLAB demo estimated a `20 deg` ULA target at `20.05 deg` using the spatial matched-filter response `|a(theta)^H x|`.
-- When asked how to interpret a high angle-spectrum peak at `30 deg` and a smaller peak at `-20 deg`, the learner suggested there may be two real targets; this is possible but needs caution because the smaller peak may also be a sidelobe or artifact.
-- The learner predicted that increasing ULA element count from `M = 8` to `M = 16` makes the angle-spectrum mainlobe narrower and the sidelobe pattern denser.
-- For `d = lambda` and a true `30 deg` target, the learner suggested `150 deg` as another equivalent angle; this is mathematically related through `sin(150 deg) = sin(30 deg)`, while the current `[-90, 90]` scan convention highlights the grating-lobe alias near `-30 deg`.
-- A new MATLAB demo showed that for a `30 deg` target with `M = 16`, response at `-30 deg` is about `-308 dB` for `d = lambda/2`, but `0 dB` for `d = lambda`.
-- A new MATLAB RDA demo used `rx[fast time, slow time, array element]` and estimated a `4 km`, `30 m/s`, `20 deg` target as `4002.23 m`, `30.45 m/s`, and `20.00 deg`.
-- The learner summarized `demo_06` as synthesizing `rx = targetEcho + noise`, applying matched filtering along fast time for each slow-time/channel slice, applying Doppler FFT along slow time for each range/channel slice, then scanning angles only at the detected RD cell rather than all RD cells.
-- The learner answered `0.25` for the spatial frequency `u = d*sin(theta)/lambda` with `d = lambda/2` and `theta = 30 deg`.
-- A new MATLAB demo estimated a `30 deg` ULA target as `30.05 deg` using conventional angle scan and `30.06 deg` using spatial FFT.
-- The learner noticed that a 16-element array used `Nfft = 4096` in `demo_07` and correctly inferred that this is an interpolation/zero-padding trick rather than a 4096-point independent measurement.
-- The learner summarized range FFT, Doppler FFT, and angle FFT as converting data to frequency-like domains where response peaks correspond to physical target parameters, and connected resolution to inverse support relationships.
-- A new MATLAB demo showed that `M = 16` gives about `7.84 deg` angular resolution near `24 deg` whether `Nfft = 16` or `4096`, while `M = 32` improves the estimate to about `3.92 deg`.
-- The learner guessed that two targets give signal subspace dimension 2, and that noise subspace dimension depends on snapshot count; the first part is correct, while the second should be corrected to `M-K` dimension with snapshot count affecting estimation quality.
-- The learner correctly answered that for `M = 16` and `K = 3`, the ideal signal/noise subspace dimensions are 3 and 13.
-- A new MATLAB MUSIC demo used `M = 16`, `K = 2`, and 200 snapshots; it produced signal/noise subspace dimensions 2 and 14, eigenvalues about `17.80`, `15.08`, and `0.03`, and sharp MUSIC peaks at the two true angles.
-- The learner correctly answered that a conventional beamformer pointed at `20 deg` will not actively null a strong `-30 deg` jammer, while MVDR will tend to place a null in the jammer direction if the covariance captures it.
-- A new MATLAB MVDR demo used `M = 16`, look direction `20 deg`, jammer direction `-30 deg`, and 500 training snapshots; conventional jammer gain was about `-26.46 dB`, while MVDR jammer gain was about `-80.34 dB`.
-- The learner said they do not yet understand why diagonal loading makes MVDR more stable but can make jammer nulls shallower.
-- After explanation, the learner correctly answered that with few snapshots and unreliable `R_hat`, larger diagonal loading should be used.
-- A new MATLAB loading sweep showed conventional jammer gain about `-26.46 dB`, MVDR loading `1e-6` about `-65.24 dB`, loading `1e-2` about `-69.15 dB`, and large loading `1e1` about `-34.66 dB`.
-- The learner summarized that MUSIC and MVDR require training/covariance data and can be unstable because MUSIC needs assumptions such as source count `K`, while MVDR can suppress the wrong directions and requires diagonal loading tuning.
-- In a side conversation, the learner asked whether CFAR must be applied on an RD map or can also apply to RA maps and RDA tensors, then accepted that CFAR can operate on any detection map/cube with a CUT and surrounding training cells.
-- A new MATLAB 1D CA-CFAR demo detected the single target range profile: `7` CUTs crossed threshold, forming `1` contiguous detection cluster, with strongest detection at `4002.23 m` for a `4000 m` target.
-- The learner formulated detection as taking a given input tensor, whether 1D, 2D, or 3D, and outputting a same-shape 0/1 mask tensor where 1 marks cells with target evidence.
-- A new MATLAB 2D CA-CFAR demo detected the range-Doppler target: `28` CUTs crossed threshold, with strongest detection at `4002.23 m` and `30.45 m/s` for a `4000 m`, `30 m/s` target.
-- A new MATLAB Monte Carlo demo estimated empirical `Pfa = 9.474e-4` for design `Pfa = 1e-3`, and showed `Pd` increasing from near zero at low SNR to about `0.77` at `10 dB` and near `1.0` by `14 dB`.
-- The learner summarized CFAR Monte Carlo correctly: each test uses surrounding cells to estimate a threshold for a CUT, repeated random trials estimate probabilities in a frequentist way, and a single trial can include tests over every valid cell.
-- The learner compared radar detection to anomaly detection and explained automated detection as motivated by radar data rates exceeding human processing capacity, describing the algorithms as rule-based.
-- The learner summarized ambiguity as fundamentally a Fourier/sampling aliasing issue: sampling creates shifted or repeated spectra, and when shifted copies overlap, the original signal information cannot be uniquely recovered.
-- When asked whether 20 adjacent positive CFAR cells around one RD peak should become 20 detections, 1 detection, or depend on clustering rules, the learner chose the conditional answer and noted that the underlying scene could be one broadened target response or multiple closely spaced targets.
-- The learner asked whether blob interpretation and split/merge decisions are essentially rule-based detections based on human empirical observation implemented as algorithms.
-- When asked how to handle two local maxima in one CFAR component with range separation below `Delta R = c/(2B)`, the learner answered that the detector should mark it unresolved because the maxima may be sidelobes or two targets inside the same range-resolution cell.
-- When comparing two detection reports, the learner identified the report with `statistic / threshold = 8.5` as more trustworthy than one with `1.2`, focusing on threshold margin rather than target size.
-- When asked how to label a detection with `statistic / threshold = 20` at an RD-map edge where training cells are incomplete, the learner answered that it should be treated as high energy but with a caveat because the threshold estimate may be inaccurate.
-- A new MATLAB demo converted the 2D CFAR mask into a detection list: 28 detected CUTs formed 6 connected components; the true target report had range `4002.23 m`, velocity `30.45 m/s`, and `statisticToThreshold = 440.41`, while the other components were marked `weak_margin_review`.
-- The learner asked what the white and black regions in the CFAR binary mask mean, indicating a need to connect the plotted binary image directly to `cfarMask` values and postprocessing overlays.
-- The learner summarized Demo 15: white mask cells are where the detector thinks there is target evidence, yellow markers are peaks inside the white cells/components, and the first detection is more reliable because its `clusterSize = 21` and `statisticToThreshold = 440.41` are much larger than the weak candidates.
-- A new MATLAB design-`Pfa` sweep used the same RD map and showed `Pfa = 1e-3` produced `185` detected CUTs and `116` components, `Pfa = 1e-5` produced `28` CUTs and `6` components, and `Pfa = 1e-7` produced `23` CUTs and `3` components; the strong target stayed detected in all three cases.
-- The learner summarized Demo 16: threshold is determined by the designed `Pfa`; smaller `Pfa` gives a higher threshold and fewer point detections. For a low-SNR target, the learner predicted `Pfa = 1e-3` is more likely to detect it than `Pfa = 1e-7` because the threshold is lower.
-- A new MATLAB ROC-style demo swept target SNR and design `Pfa`; approximate SNR needed for `Pd >= 0.9` increased from `10 dB` at `Pfa = 1e-2`, to `12 dB` at `1e-3`, to `14 dB` at `1e-5`, to `16 dB` at `1e-7`.
-- The learner explained Demo 17 as fixing an SNR and design `Pfa`, running Monte Carlo to estimate `Pd`, then sweeping different SNR/Pfa settings to study the resulting `(SNR, Pfa, Pd)` relationship.
-- The learner summarized detector evaluation as requiring operating conditions instead of a single number: SNR, design/empirical `Pfa`, and `Pd` must be considered together. The learner also connected low SNR to practical radar constraints such as limited transmit power/cost and small target RCS, and explained that stricter `Pfa` raises CFAR threshold and lowers `Pd` for weak targets.
-- The learner asked for a detailed explanation of ROC thinking after understanding that detector evaluation depends jointly on SNR, `Pfa`, and `Pd`.
-- When asked to choose per-cell `Pfa` for `1e6` tested cells and an average budget of `10` false alarms per CPI, the learner answered `1e-5`.
-- When asked what happens if one side of CA-CFAR training cells contains strong clutter while the CUT has no target, the learner predicted the threshold becomes biased high and targets are more likely to be missed.
-- A new MATLAB clutter-edge demo used low/high clutter powers `1` and `100`, a target at bin `262`, and a clutter edge at bin `270`; CA-CFAR saw left/right training means `1.04` and `91.47`, producing a CA threshold `343.68` above the target statistic `121.06`, so the target was missed.
-- The learner summarized Demo 18 as showing that different statistical threshold-estimation methods lead to different detector performance (`Pfa`, `Pd`, ROC behavior), and that CFAR-like detectors are not perfect because no single variant handles every clutter distribution well.
-- The learner proposed collecting environment statistics before or during radar operation, training a model to learn the clutter/background distribution, and using simulation data to test whether such learned environment-aware detection can outperform CFAR in complex clutter.
-- When asked whether stationary clutter or a `30 m/s` target lies closer to the `0 m/s` Doppler bin, the learner answered stationary clutter because its velocity is zero.
-- A new MATLAB stationary-clutter demo created 30 zero-velocity clutter scatterers and one `30 m/s` target; the two-pulse MTI reduced total zero-Doppler power by about `73.99 dB`, while the target-cell power changed by about `+1.41 dB`.
-- When asked what happens after two-pulse MTI to stationary clutter, a `30 m/s` vehicle, and a `1 m/s` slow pedestrian, the learner answered that stationary clutter is suppressed, the slow target may also be suppressed, and the `30 m/s` target is preserved.
-- When asked why a `30 m/s` vehicle is detected after MTI plus CFAR but a `1 m/s` pedestrian is missed, the learner chose the combined diagnosis: both strict CFAR thresholding and MTI slow-target attenuation are possible, and the right first check is target-cell energy before/after MTI.
-- A new MATLAB demo compared CFAR before and after MTI: total detected CUTs changed from `703` to `55`, zero-Doppler detections changed from `322` to `8`, stationary clutter CFAR margin changed from `374.04` to `0.086`, the `1 m/s` target power changed by `-27.44 dB` but remained detected, and the `30 m/s` target power changed by `+1.41 dB` and remained detected.
-- The learner read Demo 20 and summarized that baseline parameters define the point-scatterer signal model, targets and clutter are both scatterers from the radar's perspective, 2D CA-CFAR parameters configure the detector, derived values compute signal/performance quantities, echo synthesis builds target/clutter/noise returns, and the processing chain is matched filter -> MTI -> Doppler FFT -> CFAR.
-- The learner explained that the `1 m/s` target may still pass CFAR after MTI because CFAR estimates a local threshold from surrounding cells, and the threshold around the slow target can be low after clutter suppression; the learner also said they are not yet sure how the truth-cell CFAR margins plot is generated.
-- The learner asked whether the `statistic` in Demo 20 is specifically the CUT's power value, revealing the need to distinguish the per-CUT CFAR test from the truth-summary windowed maximum.
-- A new MATLAB velocity-sweep demo used a low-amplitude target and showed after-MTI CFAR misses at `0` and `0.1 m/s`, first detects at `0.25 m/s`, and then gains margin as velocity increases away from the MTI notch.
-- The learner explained that `0` and `0.1 m/s` are missed after MTI because the filter suppresses their corresponding power values enough to fall below the CFAR threshold.
-- A new MATLAB Doppler-spread clutter demo showed that stationary clutter leaves almost no after-MTI low-Doppler detections, while Doppler-spread clutter leaves a visibly widened residual ridge and many after-MTI low-Doppler CFAR detections.
-- The learner asked what Demo 22 is intended to show and how the code's overall logic is organized.
-- The learner asked how `low-Doppler suppression` is computed, indicating a need to distinguish a single-bin suppression metric from an integrated low-Doppler-band power metric.
-- The learner asked which range bin the Demo 22 Doppler profile corresponds to, revealing a need to clarify that the plotted curve is integrated over all range bins.
-- The learner summarized Demo 22 as showing that a simple MTI filter cannot handle more complex clutter, because complex clutter cannot be adequately described by a simple RD-map rule.
-- A new MATLAB Doppler clutter mask demo showed that excluding `|v| <= 5 m/s` after CFAR removes low-Doppler clutter reports but also suppresses a true `2 m/s` slow target from the final report list.
-- When asked why the raw-CFAR-detected `2 m/s` target is not reported in Demo 23, the learner answered that detections between about `-5` and `+5 m/s` are manually masked out.
-- The learner stated that Demo 23 is understood and asked what comes next.
-- A new MATLAB clutter-map demo averaged target-free historical after-MTI RD maps, compared the current frame against the learned background with a surprise ratio, and showed that a `2 m/s` slow target suppressed by fixed Doppler masking can be recovered as new low-Doppler evidence.
-- The learner asked for Demo 24's goal and overall code logic, indicating a need to connect history-frame generation, clutter-map averaging, current-frame processing, surprise ratio, and masks.
-- The learner summarized clutter maps as using many assumed target-free historical RD maps to compute a mean background value for each cell, then comparing a new RD map to that background with `RD_map_new / clutter_map`.
-- The learner asked whether clutter-map methods are used in real radar and when they fail.
-- The learner proposed that clutter-map failure scenarios may be addressable with deep learning and asked to formulate this as a research idea in the `research_idea` directory.
-- The learner answered that if clutter drifts to `3 m/s`, the `current/static` surprise map will produce surprise near `3 m/s`, causing `Pfa` to increase.
-- The learner explained that small `K` in a recent-frame clutter map makes the map more current and better able to track clutter drift, but increases the chance that a real `2 m/s` slow target is included in the clutter estimate and absorbed; large `K` has the opposite behavior.
-- The learner chose robust median/quantile-style updates as the most appealing first safeguard for target absorption, saying detection-gated updates and target-free calibration frames feel more empirical/ad hoc.
-- The learner answered that a `2 m/s` slow target will start being absorbed by a recent-`K` median clutter map when its persistence `T > K/2`.
-- A new MATLAB Demo 25 was created and run with `K = 21`, clutter drift from `0` to `3 m/s`, current clutter center about `2.73 m/s`, a `2 m/s` slow target, and target-free threshold calibration at empirical `Pfa ~= 1e-3`. The resulting summary showed recent mean first missed at `T = 2`, recent median at `T = 9`, recent q25 at `T = 15`, while the fixed Doppler mask never reports the `2 m/s` target.
-- The learner asked for Demo 25's teaching goal and pseudocode-level code logic, indicating the next need is to connect the plotted curves to the simulation setup, calibration step, persistence sweep, and robust background estimators.
-- The learner again asked for Demo 25's overall code logic and goal, confirming that the next explanation should emphasize the end-to-end detector-comparison flow rather than individual MATLAB syntax.
-- When asked to predict q10 versus q25, the learner answered that q10 would absorb earlier, have a lower calibrated threshold, and improve weak-target `Pd`; this reveals a reversed intuition about low quantiles under high-power target contamination and the need to connect quantile choice to calibrated threshold distributions.
-- After correction, the learner answered that q10 would not remain robust if the anomaly were a low-power shadow/gap rather than a high-power target, showing improved understanding that robust quantile choice depends on anomaly direction.
-- The learner answered that if two cells have the same mean and current power, the lower-variance cell should be judged more anomalous, showing readiness to move from point background estimates to distribution/tail-probability thinking.
-- When asked about mean/std z-score under heavy-tailed clutter, the learner suggested detection rate may become lower; this is partially correct via `std` inflation, but needs the additional false-alarm calibration point that Gaussian-tail thresholds can badly underestimate empirical `Pfa`.
-- The learner asked whether Demo 25 is not using CFAR and is instead using `surprise_dB` as an anomaly score for classification; this shows the learner is separating classical local CFAR from calibrated clutter-map anomaly detection.
-- The learner asked for a slower walkthrough of Demo 25's overall logic, indicating the code still needs to be explained as an experiment flow: generate target-free drifting clutter, estimate backgrounds, calibrate thresholds, inject target history contamination, and compare detection margins.
-- The learner asked how Demo 25's target-free threshold calibration is implemented in code, indicating the next detail to reinforce is the loop that collects `surprise_dB` scores on target-free frames and chooses the `(1 - Pfa)` empirical quantile.
-- The learner asked why `calibrationScores` is flattened across all cells instead of using per-cell thresholds, indicating the need to explain pooled empirical `Pfa`, sample-count limits for per-cell quantiles, and the tradeoff between global and cell-specific calibration.
-- The learner summarized Demo 25 as a clutter-only training / background-estimation / anomaly-score / thresholding pipeline and connected it to autoencoder-style anomaly detection. This shows strong framework-level understanding, with minor nuance needed that Demo 25 calibrates the threshold from target-free score samples rather than estimating the score itself, and that neural anomaly scores can be computed in input space, latent space, reconstruction error, likelihood, or predicted residuals.
-- The learner proposed that deep representation learning may capture clutter-shift features that simple static/recent mean/quantile clutter maps cannot capture without hand-tuned windows, quantiles, and more complex threshold estimation.
-- The learner asked to save this research insight in `research_idea`; a standalone bilingual note was created to preserve the hypothesis that representation learning may capture clutter shift and Doppler-spread dynamics while still requiring empirical `Pfa` calibration.
-- The learner summarized the recent detection methods as a framework: use clutter distribution or historical RD maps to build statistics/thresholds, then evaluate `Pfa` and `Pd`; interpreted CFAR and clutter-map variants as threshold-based statistical inference / estimator design, with possible safeguards such as gated updates or target-free calibration frames.
-- The learner answered that, for two cells with equal mean-normalized current power, the historically stable low-fluctuation cell should be more anomalous than the heavy-tailed cell, showing correct uncertainty-aware anomaly reasoning.
-- The learner identified the point-estimate background abstraction and the three-level learned clutter-model abstraction as useful insights and asked to store them in `KB_radar_basics_matlab`.
+### 2.1 Radar data-cube mental model
 
-## Follow-up Questions to Ask
+The learner now has a stable mapping:
 
-- After the first MATLAB demo, ask the learner to identify which code lines implement delay, Doppler phase, and matched filtering.
-- Ask the learner to explain what indices are being held fixed or stacked when moving from `x_{m,n,p}(t)` to `\mathbf x_{p,k}` and then to `x[m,n,p,k]`.
-- Ask the learner to write the Doppler matched-filter sum for a hypothesized Doppler frequency and explain why the matching bin produces coherent gain.
-- Ask the learner to distinguish "nominally resolvable" from "visually clean two-peak separation" in a matched-filter profile.
-- Ask the learner what evidence would distinguish a second target from a sidelobe in an angle spectrum.
-- Ask the learner why grating lobes are more dangerous than ordinary sidelobes in detection.
-- Ask the learner to identify which dimensions are processed by matched filtering, Doppler FFT, noncoherent RD peak picking, and angle scan in `demo_06`.
-- Ask the learner what would change computationally and dimensionally if angle scan were applied to every range-Doppler cell.
-- Ask the learner how to convert a spatial FFT bin `u` back to angle using `theta = asin(u*lambda/d)`.
-- Ask the learner to explain one advantage and one limitation of spatial FFT versus arbitrary angle scan.
-- Ask the learner what would happen to mainlobe width if `Nfft` stayed 4096 but `M` increased from 16 to 32.
-- Ask the learner to compare which change improves display smoothness versus physical resolution: increasing `Nfft` or increasing `M`.
-- Ask the learner to explain why zero-padding can help peak interpolation but cannot separate two targets whose mainlobes fundamentally overlap.
-- Ask the learner to identify which eigenvectors form the noise subspace after sorting covariance eigenvalues.
-- Ask the learner why MUSIC fails or degrades when `K` is chosen incorrectly or snapshots are too few.
-- Ask the learner to identify the MVDR distortionless constraint and what would go wrong if the steering vector is mismatched.
-- Ask the learner to explain why large diagonal loading makes MVDR behave more like conventional beamforming.
-- Ask the learner to compare when conventional beamforming might be preferred over MUSIC/MVDR despite lower resolution or less adaptivity.
-- Ask the learner to identify what the CUT, guard cells, and training cells would mean in a 1D range profile versus a 2D RD map.
-- Ask the learner why multiple adjacent CUT detections near one target should usually be clustered before reporting target count.
-- Ask the learner what information a detection list should include beyond the binary mask, such as estimated range, velocity, angle, and detection statistic/SNR.
-- Ask the learner why CFAR edge cells are often left untested or handled specially.
-- Ask the learner what happens to `Pd` at fixed SNR if the design `Pfa` is reduced from `1e-3` to `1e-6`.
-- Ask the learner which quantity a downstream tracker needs from the detector that a human operator watching displays cannot guarantee or calibrate.
-- Ask the learner what evidence inside one connected CFAR component would justify splitting it into two target reports instead of reporting one peak.
-- Ask the learner which demo_15 detection-list rows should be forwarded automatically to a tracker and which should be filtered or caveated, and why.
-- Ask the learner to predict what would happen to a weaker target if design `Pfa` were reduced from `1e-3` to `1e-7`.
-- Ask the learner to explain why a stricter design `Pfa` shifts the `Pd` curve to the right, and what operational tradeoff that creates.
-- Ask the learner which target is most dangerous after MTI plus CFAR: the strong stationary clutter, the `30 m/s` moving target, or the `1 m/s` slow target, and why.
-- Ask the learner to predict how a two-pulse MTI velocity-response curve should look near `0 m/s`.
-- Ask the learner why the `1 m/s` target can lose `27.44 dB` of absolute power yet still pass CFAR in Demo 20.
-- Ask the learner what would likely happen to the `1 m/s` target if its amplitude were reduced or the post-MTI background/noise threshold were higher.
-- Ask the learner to read Demo 21's bottom-left CFAR-margin plot: which velocities are below threshold after MTI, which are above, and why does the curve rise with velocity?
-- Ask the learner how the detection boundary would move if target amplitude were reduced, PRF changed, or a different MTI filter were used.
-- Ask the learner to compare Demo 22's top and bottom rows: why does the stationary clutter row become clean after MTI, while the Doppler-spread clutter row keeps residual low-Doppler detections?
-- Ask the learner why a single deep notch at `0 m/s` cannot remove clutter spread across `-3` to `+3 m/s` without also risking slow-target loss.
-- Ask the learner to explain why Demo 23's slow target can be raw-CFAR detected but not reported after the Doppler clutter mask.
-- Ask the learner what would happen if the clutter mask half-width changed from `5 m/s` to `2 m/s` or `8 m/s`.
-- Ask the learner to explain why the `2 m/s` target appears in Demo 24's clutter-map surprise mask even though it lies inside the fixed Doppler-mask band.
-- Ask the learner how a temporal background predictor could reduce the false surprise near `3 m/s` without also absorbing a real slow target at `2 m/s`.
-- Ask the learner which safeguard should be added first in Demo 25 to reduce target absorption: detection-gated map updates, robust quantile/median updates, or separate target-free calibration frames.
-- Ask the learner what failure mode would occur if the historical clutter map included the slow target for many frames.
-- Ask the learner to predict how a strong sidelobe jammer would appear in an angle spectrum compared with a target at the look direction.
-- Ask the learner why MVDR can suppress a sidelobe jammer more easily than a mainlobe jammer.
-- Ask the learner what should happen to the range-Doppler map if a broadband noise jammer raises the receiver noise floor.
+- **Range / delay** → `fast time`
+- **Velocity / Doppler** → `slow time`
+- **Angle / spatial phase** → `array element`
 
-## Next Recommended Learning Step
+The continuous-time received signal, vector form, and sampled data-cube form should be treated as different representations of the same physical array echo, not separate physical models.
 
-- Next, return to the Week 5 plan and run a focused jammer/interference segment: start with a conventional beamformer seeing a target plus a strong sidelobe jammer, then compare spatial nulling/MVDR behavior, and finally contrast sidelobe jammer, mainlobe jammer, broadband noise jammer, and tone/narrowband jammer effects.
+Range, Doppler, and angle processing share the same basic abstraction:
 
-## Update History
+> correlate/project the measured data onto a hypothesis template.
 
-| Date | Topic | Evidence | Update |
-| --- | --- | --- | --- |
-| 2026-06-09 | Core tensor model | First learning session started. | Created learner model file with initial topic and no assessed understanding yet. |
-| 2026-06-09 | Core tensor model | Correctly identified fast time, slow time, and array element as the dimensions for range, velocity, and angle. | Recorded initial correct mapping; next check should assess physical reasoning. |
-| 2026-06-09 | Core tensor model | Explained slow-time phase variation with radial velocity and element-to-element phase from array geometry. | Marked the core tensor model as initially stable and moved next step to MATLAB implementation. |
-| 2026-06-09 | Signal model representations | Summarized continuous-time, vector, and data-cube forms as different descriptions of the whole array sensing the same single-target signal. | Recorded understanding of equivalent representations; added a nuance to distinguish continuous-time per-element signals from stacked/sampled vector and tensor forms. |
-| 2026-06-09 | Matched-filter view of radar processing | Described Doppler, angle, and range processing as matching templates along slow time, array element, and fast time. | Recorded a strong unifying abstraction; added a caution about conjugation/sign conventions. |
-| 2026-06-09 | Resolution parameters | Correctly predicted the qualitative effects of increasing bandwidth and pulse count on range and velocity resolution. | Recorded correct prediction and added nuance that range resolution comes from bandwidth while Doppler resolution comes from CPI duration. |
-| 2026-06-09 | Range resolution | Correctly predicted that 8 m target separation is unresolved or barely resolved at 10 MHz bandwidth and easier to separate at 20 MHz. | Recorded understanding of the range-resolution formula and added nuance that resolution is an approximate scale rather than a hard boundary. |
-| 2026-06-09 | Range resolution | Predicted that 20 m separation would likely resolve at 20 MHz but might still not resolve at 10 MHz. | Recorded partly correct prediction; clarified that 20 m exceeds the 10 MHz nominal resolution, so partial visible separation is expected even if the two peaks are not clean. |
-| 2026-06-09 | Range resolution | Explained that 20 m separation at 10 MHz is still close to the 15 m resolution scale, so responses overlap and do not form clean peaks. | Recorded understanding of nominal resolution versus clean visual separation. |
-| 2026-06-09 | Doppler resolution | Predicted that 30 m/s and 32 m/s targets overlap strongly for `Np = 64`, and still overlap a lot for `Np = 128`. | Recorded correct qualitative transfer of resolution logic from range to Doppler; next step is MATLAB slow-time FFT verification. |
-| 2026-06-09 | Doppler resolution | Computed `Np` as about 300 for velocity bin spacing below `0.5 m/s` at 10 GHz carrier and 10 kHz PRF. | Recorded correct formula-based parameter reasoning; next step is PRF ambiguity tradeoffs. |
-| 2026-06-09 | PRF ambiguity tradeoff | Correctly predicted that doubling PRF reduces unambiguous range and increases unambiguous velocity. | Recorded understanding of the basic PRF tradeoff; next step is Doppler aliasing. |
-| 2026-06-09 | Doppler aliasing | Predicted that a 90 m/s target exceeds the unambiguous velocity and will wrap, but guessed the alias near 20 m/s. | Recorded correct aliasing intuition and corrected the shifted-FFT alias to about -60 m/s. |
-| 2026-06-09 | Doppler aliasing | Correctly computed that 160 m/s aliases to about 10 m/s for a 150 m/s velocity period. | Recorded successful alias calculation; ready to connect temporal aliasing to spatial aliasing in arrays. |
-| 2026-06-09 | ULA steering vector | Correctly answered that broadside has zero spatial phase increment and an all-ones steering vector. | Recorded initial understanding of the ULA steering vector at broadside; next step is nonzero angle phase progression. |
-| 2026-06-09 | ULA steering vector | For `d = lambda/2`, `theta = 30 deg`, answered `pi*d/lambda` for the phase increment. | Recorded partial substitution and corrected the current-convention phase increment to `-pi/2`; follow-up should practice steering-vector entries. |
-| 2026-06-09 | ULA steering vector | Correctly simplified `Delta phi = -pi/2` steering-vector entries as `[1, -j, -1, j]`. | Recorded corrected nonzero-angle steering-vector understanding. |
-| 2026-06-09 | ULA beamforming | Ran a ULA spatial matched-filter angle scan with a 20 deg target and estimated 20.05 deg. | Connected steering-vector templates to conventional beamforming output; next step is aperture and grating-lobe experiments. |
-| 2026-06-09 | Angle spectrum interpretation | Interpreted a high peak at 30 deg and smaller peak at -20 deg as possibly two real targets. | Recorded plausible interpretation and added caution that smaller peaks can be sidelobes, noise peaks, or grating lobes. |
-| 2026-06-09 | ULA aperture | Predicted that increasing element count from 8 to 16 narrows the mainlobe and makes sidelobe structure denser. | Recorded correct aperture intuition; added nuance that sidelobe levels depend on weighting/windowing. |
-| 2026-06-09 | Spatial aliasing | Suggested 150 deg as an equivalent angle for a 30 deg target with `d = lambda`. | Recorded the sine-equivalence insight and clarified that under the current broadside scan convention, the visible grating-lobe alias is near -30 deg. |
-| 2026-06-09 | Spatial aliasing | Ran a MATLAB comparison showing `d = lambda/2` has no strong `-30 deg` alias, while `d = lambda` creates an equal-height `-30 deg` grating lobe for a `30 deg` target. | Recorded visual/numerical evidence that element spacing above `lambda/2` can create spatial aliasing. |
-| 2026-06-09 | Range-Doppler-angle cube | Built and ran `demo_06_single_target_rda_cube.m`, estimating range, velocity, and angle from `rx[fast time, slow time, array element]`. | Recorded successful integration of the three processing dimensions into one end-to-end skeleton. |
-| 2026-06-09 | Range-Doppler-angle cube | Correctly summarized `demo_06` processing order and noted that angle scan is applied only to the detected RD cell. | Recorded strong code-level understanding and added distinction between detected-cell scan and full RDA cube generation. |
-| 2026-06-09 | Spatial FFT | Correctly computed spatial frequency `u = 0.25` for `d = lambda/2`, `theta = 30 deg`. | Began connecting ULA steering vectors to FFT over the array-element dimension. |
-| 2026-06-09 | Spatial FFT | Built and ran `demo_07_spatial_fft_vs_angle_scan.m`, estimating a 30 deg target as 30.05 deg by angle scan and 30.06 deg by spatial FFT. | Recorded that conventional beamforming scan and spatial FFT are two views of the same ULA spatial-frequency matching operation. |
-| 2026-06-09 | Spatial FFT | Noticed that `Nfft = 4096` is much larger than the 16 array elements and asked whether it is interpolation. | Recorded correct understanding that zero-padding densifies the displayed FFT grid but does not improve physical angle resolution. |
-| 2026-06-09 | Fourier/aperture view | Summarized range, Doppler, and angle FFTs as frequency-domain mappings whose responses correspond to physical target parameters, with resolution tied to inverse support. | Recorded a strong unified abstraction and added nuance that FFT displays/projections reveal resolution set by physical support/aperture. |
-| 2026-06-09 | Angle resolution | Built and ran `demo_08_angle_resolution_m_vs_nfft.m`, comparing `M=16,Nfft=16`, `M=16,Nfft=4096`, and `M=32,Nfft=4096` for two close angular targets. | Recorded visual/numerical evidence that zero-padding interpolates the display grid, while increasing array aperture improves true angular resolution. |
-| 2026-06-09 | MUSIC motivation | Correctly inferred that two targets imply a two-dimensional signal subspace, but thought noise subspace dimension depends on snapshot count. | Recorded partial MUSIC subspace understanding and corrected that ideal noise subspace dimension is `M-K`, while snapshots affect covariance estimate quality. |
-| 2026-06-09 | MUSIC motivation | Correctly computed signal/noise subspace dimensions as 3 and 13 for `M = 16`, `K = 3`. | Recorded stable understanding of MUSIC subspace dimensions. |
-| 2026-06-09 | MUSIC demo | Built and ran `demo_09_music_two_targets.m`, comparing conventional beamforming and MUSIC for two close angular targets. | Recorded that MUSIC can produce sharper two-target DOA peaks by using the noise subspace, under stronger covariance/model assumptions. |
-| 2026-06-09 | MVDR motivation | Correctly stated that conventional beamforming does not actively null an off-angle jammer, while MVDR tends to null the jammer if covariance estimation captures it. | Recorded the core MVDR intuition and moved next step to a jammer-nulling demo. |
-| 2026-06-09 | MVDR demo | Built and ran `demo_10_mvdr_jammer_nulling.m`, comparing conventional and MVDR weights for a 20 deg look direction with a -30 deg jammer. | Recorded that MVDR preserves look-direction gain while placing a much deeper jammer null than conventional beamforming. |
-| 2026-06-10 | MVDR diagonal loading | Said the stability/null-depth tradeoff from diagonal loading is not yet clear. | Recorded diagonal-loading intuition as the current MVDR understanding gap. |
-| 2026-06-10 | MVDR diagonal loading | Correctly answered that fewer snapshots / less reliable covariance estimates call for larger diagonal loading. | Recorded initial diagonal-loading intuition; next step is visualizing the loading sweep. |
-| 2026-06-10 | MVDR diagonal loading | Built and ran `demo_11_mvdr_diagonal_loading_sweep.m`, showing small loading yields deep jammer nulls while very large loading makes the null shallower. | Recorded visual/numerical evidence of the stability versus null-depth tradeoff. |
-| 2026-06-10 | MUSIC/MVDR assumptions | Summarized that MUSIC and MVDR need training/covariance data and are sensitive to assumptions such as source count, covariance quality, steering mismatch, and diagonal loading. | Recorded strong practical understanding of advanced beamforming tradeoffs. |
-| 2026-06-10 | CFAR scope | Asked whether CFAR must be applied to RD maps or can also apply to RA maps and RDA tensors. | Recorded understanding that CFAR is a general adaptive-threshold method for detection maps/cubes, not an RD-only algorithm. |
-| 2026-06-10 | 1D CA-CFAR | Built and ran `demo_12_cfar_1d_range_profile.m`, detecting the matched-filter target range profile with CA-CFAR. | Recorded first CFAR implementation: CUT thresholding produced 7 adjacent detected CUTs grouped into 1 target cluster, strongest at 4002.23 m. |
-| 2026-06-10 | Detection formulation | Formulated detection as converting an input statistic tensor into a same-shape binary mask tensor. | Recorded correct engineering abstraction and added nuance that masks are usually clustered into detection lists. |
-| 2026-06-10 | 2D CA-CFAR | Built and ran `demo_13_cfar_2d_range_doppler.m`, detecting a single target in a range-Doppler map with a 2D CA-CFAR mask. | Recorded first 2D CFAR implementation: 28 detected CUTs, strongest detection at 4002.23 m and 30.45 m/s. |
-| 2026-06-10 | Detection metrics | Built and ran `demo_14_cfar_pd_pfa_monte_carlo.m`, estimating empirical false alarm probability and detection probability versus SNR. | Recorded first Monte Carlo detection-metrics demo: empirical Pfa matched design Pfa closely and Pd increased with SNR. |
-| 2026-06-10 | Detection motivation | Compared detection to anomaly detection and attributed automation mainly to high radar data rates, calling CFAR rule-based. | Recorded the apt anomaly-detection analogy; refined the motivation to controllable error statistics and noted CA-CFAR thresholds derive from hypothesis-testing models rather than ad-hoc rules. |
-| 2026-06-11 | Learning-state refresh | Recalled `radar_teaching_plan.md` and `learners_current_understanding.md` before continuing. | Aligned current stage with completed 2D CFAR and Pd/Pfa Monte Carlo demos. |
-| 2026-06-11 | Ambiguity / aliasing | Explained ambiguity through Fourier aliasing: sampling creates repeated/shifted spectra, and overlap destroys unique recoverability. | Recorded the unified ambiguity mental model and added follow-up practice across range, Doppler, and spatial dimensions. |
-| 2026-06-11 | CFAR Monte Carlo metrics | Summarized that each CFAR random experiment tests cells by estimating a local threshold from neighboring values, and repeated trials estimate probabilities by empirical frequency. | Recorded understanding of the CUT-level CFAR test, trial-level repetition, and frequentist interpretation of empirical `Pfa` and `Pd`. |
-| 2026-06-11 | CFAR detection-list postprocessing | Chose the conditional interpretation for 20 adjacent CFAR detections and explained that the blob could represent one target response or multiple close targets. | Recorded nuanced understanding that CFAR masks require clustering/peak analysis before target reports, and that close-target separation depends on resolution and evidence. |
-| 2026-06-11 | Detection rules vs statistical detection | Asked whether blob interpretation rules are empirical human-observation rules implemented as algorithms. | Recorded need to distinguish CFAR's statistical threshold model from heuristic/engineering postprocessing rules used to convert masks into detection lists. |
-| 2026-06-11 | Unresolved CFAR components | Answered that two local maxima closer than nominal range resolution should be marked unresolved/ambiguous because they may be sidelobes or targets in the same range-resolution cell. | Recorded conservative split/merge reasoning and added nuance that separability should be assessed across range, Doppler, and angle dimensions. |
-| 2026-06-11 | Detection report confidence | Chose the compact detection with `statistic / threshold = 8.5` over the large barely-above-threshold cluster at `1.2`. | Recorded understanding that threshold margin is strong evidence of report reliability, while cluster size requires contextual interpretation. |
-| 2026-06-11 | Edge-cell detection caveats | Labeled a `statistic / threshold = 20` edge detection as high energy but needing a caveat because incomplete training cells make threshold estimation less reliable. | Recorded distinction between evidence strength and reliability of CFAR calibration assumptions. |
-| 2026-06-11 | CFAR detection list demo | Built and ran `demo_15_cfar_detection_list.m`, converting 28 CFAR CUT detections into 6 connected-component reports. | Recorded that the true target has a very large threshold margin while weak near-threshold components should be marked for review rather than treated as equally reliable targets. |
-| 2026-06-11 | CFAR mask visualization | Asked what black and white mean in the CFAR binary mask plot. | Recorded visualization gap: connect white cells to `mask = 1`, black cells to `mask = 0`/untested cells, and yellow markers/boxes to postprocessing overlays. |
-| 2026-06-11 | Demo 15 consolidation | Correctly summarized white CFAR-positive cells, yellow component peaks, and why the high-margin main report is more reliable than weak candidates. | Marked Demo 15 concept as understood, with a small wording nuance that white cells are candidate evidence rather than confirmed targets. |
-| 2026-06-11 | CFAR Pfa tradeoff demo | Built and ran `demo_16_cfar_pfa_tradeoff.m`, comparing `Pfa = 1e-3`, `1e-5`, and `1e-7` on the same RD map. | Recorded that stricter design `Pfa` raises threshold scale, reduces CUT/component/review-candidate counts, and still detects the strong target in this controlled scenario. |
-| 2026-06-11 | CFAR Pfa/Pd tradeoff | Explained that smaller design `Pfa` raises threshold and reduces point detections; predicted that a low-SNR target is more likely to be detected with `Pfa = 1e-3` than `Pfa = 1e-7`. | Recorded understanding of the qualitative ROC tradeoff: looser thresholds improve detection probability for weak targets while allowing more false candidates. |
-| 2026-06-11 | CFAR ROC-style curves | Built and ran `demo_17_cfar_roc_pfa_snr_sweep.m`, sweeping target SNR for design `Pfa = 1e-2`, `1e-3`, `1e-5`, and `1e-7`. | Recorded the ROC-style result that stricter `Pfa` reduces false alarms but shifts the `Pd` curve right, requiring higher SNR for the same detection probability. |
-| 2026-06-11 | Demo 17 interpretation | Described each Monte Carlo point as fixing SNR and design `Pfa`, estimating `Pd`, then studying the relationship across `(SNR, Pfa, Pd)`. | Recorded correct experiment-design understanding and added nuance that empirical `Pfa` is estimated separately from noise-only trials. |
-| 2026-06-11 | Detector evaluation tradeoffs | Summarized that detector quality is context-dependent and should be evaluated through SNR, `Pfa`, and `Pd`, especially under low-SNR operational constraints. | Recorded strong ROC-level understanding and added nuance that SNR affects `Pd` for a chosen threshold but does not directly set `Pfa`. |
-| 2026-06-11 | ROC thinking request | Asked for a detailed explanation of ROC thinking. | Recorded the next teaching need: explain detector statistic distributions, threshold movement, classic ROC, Demo 17's Pd-vs-SNR family, and operating-point selection. |
-| 2026-06-11 | False-alarm budget | Computed per-cell `Pfa = 1e-5` from `10` allowable false alarms over `1e6` tested cells. | Recorded understanding that operating-point selection is constrained by downstream false-alarm budget, not just by per-cell detector theory. |
-| 2026-06-11 | CA-CFAR clutter contamination | Predicted that strong clutter in training cells raises CA-CFAR threshold and makes miss detections more likely. | Recorded initial understanding of CA-CFAR failure modes in nonhomogeneous backgrounds. |
-| 2026-06-12 | CA-CFAR clutter edge demo | Built and ran `demo_18_cfar_clutter_edge.m`; CA-CFAR missed a target near a 20 dB clutter step because right-side training cells raised the threshold above the target statistic. | Recorded visual and numerical evidence that CA-CFAR's homogeneous-background assumption breaks at clutter edges, motivating clutter-aware CFAR variants. |
-| 2026-06-12 | CFAR variant tradeoffs | Summarized that different threshold-estimation statistics produce different detector performance and that no CFAR-like detector is universally best across clutter distributions. | Recorded strong conceptual understanding of detector/clutter mismatch and added nuance that CFAR variants are robust estimators tuned to different assumptions. |
-| 2026-06-12 | Environment-learned detection idea | Proposed learning environment/clutter distributions from prior or online radar data to improve detection beyond single-frame CFAR estimates, first validated with simulation. | Recorded a promising research direction and the need to preserve calibrated `Pfa`/ROC evaluation when using learned models. |
-| 2026-06-12 | Stationary clutter Doppler intuition | Predicted that stationary clutter appears near the zero-Doppler bin because its radial velocity is approximately zero. | Recorded readiness to move from CFAR-only detection into clutter ridge and MTI/Doppler filtering. |
-| 2026-06-12 | Stationary clutter and MTI demo | Built and ran `demo_19_stationary_clutter_mti.m`; stationary clutter formed a zero-Doppler ridge and two-pulse MTI suppressed zero-Doppler power by about `73.99 dB` while preserving the `30 m/s` target. | Recorded visual/numerical evidence that stationary clutter is a slow-time problem and that MTI is a Doppler high-pass/notch filter before detection. |
-| 2026-06-15 | MTI slow-target tradeoff | Answered that two-pulse MTI suppresses stationary clutter, preserves a `30 m/s` target, and may also suppress a `1 m/s` slow target. | Recorded correct qualitative understanding that MTI helps CFAR by reducing zero-Doppler clutter but can reduce detectability for slow targets near the notch. |
-| 2026-06-15 | MTI plus CFAR diagnosis | Chose the combined explanation for a missed `1 m/s` target after MTI plus CFAR: check both MTI attenuation and CFAR threshold strictness by comparing pre/post-MTI target-cell energy. | Recorded processing-chain debugging intuition for missed detections after clutter suppression. |
-| 2026-06-15 | CFAR before/after MTI demo | Built and ran `demo_20_cfar_before_after_mti.m`; detected CUTs fell from `703` to `55`, zero-Doppler detections from `322` to `8`, stationary clutter was removed, the `1 m/s` target lost `27.44 dB` but still passed CFAR, and the `30 m/s` target remained strong. | Recorded the nuanced result that MTI reduces zero-Doppler clutter and slow-target energy, while final detection depends on the post-MTI statistic-to-threshold margin. |
-| 2026-06-15 | Demo 20 code reading | Summarized Demo 20 as baseline/signal-model parameters, CFAR parameters, derived waveform/performance values, echo synthesis with target/clutter/noise, and matched filter -> MTI -> Doppler FFT -> CFAR processing. | Recorded strong code-level understanding of how the simulation scenario maps into the radar processing pipeline. |
-| 2026-06-15 | Truth-cell CFAR margins | Explained the `1 m/s` slow target can still pass after MTI because local CFAR threshold around that target can be low, but asked for clarification on how the truth-cell margin figure is made. | Recorded correct statistic-versus-local-threshold intuition and a specific visualization/code-reading gap about the margin plot. |
-| 2026-06-15 | Detection statistic meaning | Asked whether `statistic` means the CUT power value. | Clarified that Demo 20's CFAR statistic is `rdPower(r,dBin)`, while the truth-cell summary uses the maximum RD power in a small neighborhood around each truth point. |
-| 2026-06-15 | MTI slow-target velocity sweep | Built and ran `demo_21_mti_slow_target_velocity_sweep.m`; after-MTI CFAR missed `0` and `0.1 m/s`, first detected at `0.25 m/s`, and measured target power loss followed the theoretical MTI notch response. | Recorded concrete evidence that slow-target loss is a velocity-dependent margin problem, not a binary rule that all slow targets disappear. |
-| 2026-06-15 | Demo 21 margin interpretation | Explained that `0` and `0.1 m/s` targets fall below the after-MTI CFAR threshold because the MTI filter attenuates their near-zero-Doppler power too strongly. | Recorded correct interpretation of the MTI notch as a velocity-dependent loss that affects the final statistic-to-threshold margin. |
-| 2026-06-15 | Doppler-spread clutter demo | Built and ran `demo_22_doppler_spread_clutter_mti.m`; stationary clutter had `58.24 dB` low-Doppler suppression and `0` low-Doppler after-MTI CFAR detections, while Doppler-spread clutter had only `22.56 dB` low-Doppler suppression and `323` low-Doppler after-MTI CFAR detections. | Recorded that MTI works best for exact zero-Doppler clutter, while Doppler-spread clutter leaks through the notch and complicates CFAR. |
-| 2026-06-15 | Demo 22 clarification request | Asked for the goal of Demo 22 and the overall code logic. | Recorded need to connect Doppler-spread clutter's teaching objective to the concrete scenario setup, processing chain, summary metrics, and plots. |
-| 2026-06-15 | Low-Doppler suppression metric | Asked how Demo 22 computes `low-Doppler suppression`. | Clarified that the metric integrates RD power over all ranges and Doppler bins with `abs(velocity) <= 5 m/s`, then reports `10*log10(before/after)` as a band-power suppression value. |
-| 2026-06-15 | Doppler profile plot meaning | Asked whether Demo 22's Doppler profile after MTI corresponds to a particular range bin. | Clarified that the plot sums after-MTI RD power over all range bins for each Doppler bin, so it is an all-range Doppler power profile rather than a single-range slice. |
-| 2026-06-15 | Demo 22 conceptual summary | Summarized Demo 22 as showing that simple MTI cannot handle more complex clutter because its RD-map behavior is not captured by a simple rule. | Recorded correct high-level understanding and added nuance that complex clutter can still have learnable/statistical structure, but a single fixed MTI notch is insufficient. |
-| 2026-06-15 | Doppler clutter mask tradeoff | Built and ran `demo_23_doppler_clutter_mask_tradeoff.m`; raw after-MTI CFAR had `405` detections including `365` low-Doppler detections, and a report-stage `|v| <= 5 m/s` mask reduced reportable detections to `40` but also removed a raw-detected `2 m/s` slow target from the final report list. | Recorded that Doppler clutter masks reduce residual clutter reports by creating an explicit low-speed blind zone, so detection and final reporting must be distinguished. |
-| 2026-06-15 | Demo 23 report mask interpretation | Explained that detections inside the low-Doppler mask band are manually removed, so the `2 m/s` target is not reported despite raw CFAR detection. | Recorded correct distinction between raw detection and final report filtering by a Doppler clutter mask. |
-| 2026-06-15 | Demo 23 consolidation | Stated that Demo 23 is understood and asked what comes next. | Marked the Doppler clutter mask tradeoff as stable and moved the next step toward clutter-map / historical-background modeling. |
-| 2026-06-15 | Clutter-map background subtraction demo | Built and ran `demo_24_clutter_map_background_subtraction.m`; raw after-MTI CFAR had `350` low-Doppler detections, fixed Doppler masking allowed `0` low-Doppler reports and missed the `2 m/s` slow target, while the clutter-map surprise mask detected the slow target with `21.91 dB` surprise over background. | Recorded that a historical background model can reduce persistent clutter without automatically imposing a complete low-speed blind zone, though its threshold is not yet full `Pfa` calibration. |
-| 2026-06-15 | Demo 24 clarification request | Asked for Demo 24's goal and code logic. | Recorded need to explain clutter-map background modeling as target-free historical RD averaging followed by current/background surprise detection. |
-| 2026-06-15 | Clutter-map core summary | Summarized clutter-map detection as averaging target-free historical RD maps to estimate each cell's background clutter, then computing `RD_map_new / clutter_map` on a new measurement. | Recorded correct core understanding, with caveats about target contamination, robust updates, and denominator flooring in practical systems. |
-| 2026-06-15 | Clutter-map operational question | Asked whether clutter-map methods are used in real radar and when they do not work. | Recorded the next concept: clutter maps are useful when background statistics are stable and well registered, but fail under nonstationary clutter, target contamination, scene changes, and calibration/motion errors. |
-| 2026-06-15 | Deep-learning clutter-map research idea | Proposed using deep learning to address clutter-map failure scenarios and asked to formulate the idea in `research_idea`. | Created `deep_learning_clutter_map_failure_modes.md` as a simulation-first proposal focused on temporal/context-conditioned clutter-background modeling with calibrated false-alarm control. |
-| 2026-06-15 | Clutter-map drift and Pfa | Predicted that when clutter drifts to `3 m/s`, a stale static clutter map produces surprise near `3 m/s` and increases `Pfa`. | Recorded correct intuition that nonstationary clutter creates false target-like surprise unless the background model tracks drift or thresholds are recalibrated. |
-| 2026-06-15 | Temporal clutter-map adaptation | Explained that small recent-history window `K` tracks current clutter faster but more easily absorbs a real slow target into the background estimate, while large `K` adapts more slowly with lower short-term contamination risk. | Recorded correct adaptation-window tradeoff for Demo 25's temporal background predictor design. |
-| 2026-06-15 | Target-absorption safeguards | Preferred median/quantile background updates over detection-gated updates or target-free calibration frames because they feel less ad hoc. | Recorded preference for robust statistical estimation, with a caveat that gating and calibration frames can also be principled radar safeguards if evaluated with empirical false-alarm control. |
-| 2026-06-15 | Median-map target absorption | Answered that a persistent target starts being absorbed by a recent-`K` median clutter map when `T > K/2`. | Recorded correct robust-statistics intuition: median resists minority contamination but fails once target-present samples become the majority of the update window. |
-| 2026-06-15 | Temporal clutter-map demo | Created and ran `demo_25_temporal_clutter_map_tradeoff.m`, comparing static mean, recent mean, recent median, and recent q25 maps under Doppler-drifting clutter and persistent slow-target contamination. | Recorded Demo 25 as the next artifact for interpretation: it visualizes adaptation speed, calibrated `Pfa`, and target absorption as a function of persistence `T`. |
-| 2026-06-15 | Demo 25 clarification request | Asked for Demo 25's purpose, pseudocode, and overall logic. | Recorded need to explain the demo as a calibrated background-model comparison: generate target-free drifting clutter, calibrate surprise thresholds, inject persistent slow-target contamination, and compare target-margin/absorption curves. |
-| 2026-06-15 | Quantile-map calibration check | Predicted that q10 would absorb a high-power slow target earlier, require a lower threshold, and improve `Pd` compared with q25. | Recorded misconception to correct: lower quantiles resist high-power target absorption longer and generally require higher calibrated surprise thresholds; weak-target `Pd` depends on the calibrated score margin, not raw score alone. |
-| 2026-06-15 | Quantile directionality | Answered that q10 would not be robust for a low-power shadow/gap anomaly. | Recorded corrected intuition that lower quantiles protect against high-side contamination, while low-side anomalies require a different estimator or a two-sided detection score. |
-| 2026-06-15 | Background distribution width | Answered that, for equal means and equal current power, the lower-variance cell is more likely to be an anomaly. | Recorded correct distribution-aware detection intuition: anomaly evidence depends on tail probability under the cell's background distribution, not only on the background mean. |
-| 2026-06-15 | Heavy-tailed clutter and z-score | Suggested that mean/std z-score on heavy-tailed clutter may reduce detection rate. | Recorded partial understanding: heavy-tail samples can inflate `std` and lower weak-target margins, but the larger radar concern is miscalibrated false-alarm control if Gaussian tail assumptions are used. |
-| 2026-06-15 | Statistical detection framework | Summarized CFAR, clutter maps, and temporal/robust background maps as threshold-based statistical detection methods that estimate background/clutter behavior and compare new measurements through calibrated statistics, then evaluate `Pfa` and `Pd`. | Recorded strong framework-level understanding, with the nuance that clutter distributions are usually assumed/estimated/learned rather than truly known. |
-| 2026-06-16 | Demo 25 code logic | Asked for Demo 25's overall logic and goal. | Recorded that Demo 25 should be explained as a calibrated comparison of temporal background estimators under clutter drift and persistent slow-target contamination. |
-| 2026-06-16 | Demo 25 anomaly score | Identified that Demo 25 uses `surprise_dB` as an anomaly score rather than a classical CFAR detector. | Recorded correct distinction between sliding-window CFAR and calibrated clutter-map anomaly detection. |
-| 2026-06-16 | Demo 25 slow walkthrough request | Asked for a slower explanation of Demo 25's overall logic. | Recorded need to keep the explanation at experiment-flow level before returning to code-level details. |
-| 2026-06-16 | Demo 25 threshold calibration | Asked how the target-free threshold calibration step is implemented in code. | Recorded need to explain `calibrationScores`, empirical quantile thresholding, and measured empirical `Pfa`. |
-| 2026-06-16 | Pooled versus per-cell calibration | Asked why Demo 25 flattens all calibration cells into one score vector rather than calibrating per-cell thresholds. | Recorded readiness to discuss pooled global false-alarm control versus cell-specific calibration and the sample-size tradeoff. |
-| 2026-06-16 | Demo 25 framework summary | Summarized Demo 25 as an anomaly-detection framework with target-free RD history, background-map estimation, surprise-score computation, threshold calibration, and new-frame detection; connected classical mean/quantile maps to deep-learning anomaly detection. | Recorded strong framework-level understanding and noted small nuances around threshold calibration and possible neural anomaly-score definitions. |
-| 2026-06-16 | Deep learning clutter representation idea | Proposed that representation learning could learn clutter-shift dynamics that traditional clutter-map estimators handle only through manual choices such as window length, quantile level, and thresholding. | Recorded a sharpened research hypothesis: learned temporal clutter representations may improve background prediction, but must still preserve empirical false-alarm calibration. |
-| 2026-06-16 | Representation learning research note | Asked to save the Demo 25 representation-learning insight in `research_idea`. | Created `representation_learning_for_clutter_shift.md` as a standalone bilingual research note and recorded the insight in the learner model. |
-| 2026-06-16 | Uncertainty-aware anomaly reasoning | Answered that the stable low-fluctuation cell is more anomalous than a heavy-tailed cell for the same current-over-mean ratio. | Recorded correct intuition that anomaly evidence should depend on the target-free distribution width/tail behavior, not just a point background estimate. |
-| 2026-06-16 | Point-estimate versus distributional clutter models | Asked to save the point-estimate background model and three learned clutter-model levels in the project KB. | Created `point_estimate_vs_distributional_clutter_models.md` with detailed explanations of mean background prediction, uncertainty-aware scoring, full H0 distribution modeling, and fixed-`Pfa` evaluation. |
-| 2026-06-16 | Curriculum direction reset | Asked to return to `radar_teaching_plan.md` and avoid spending much more time on clutter models. | Updated the active learning path to pause deeper clutter-map research and move next to jammer/interference experiments in Week 5. |
+Concretely:
+
+- range processing matches against delayed waveform templates,
+- Doppler processing matches against slow-time sinusoids,
+- angle processing matches against spatial steering vectors.
+
+---
+
+### 2.2 Fourier / aperture view
+
+The learner understands the unified Fourier-like view:
+
+- **Range resolution** comes mainly from waveform bandwidth.
+- **Doppler resolution** comes mainly from coherent processing interval / pulse count.
+- **Angle resolution** comes mainly from array aperture / element count.
+
+Zero-padding or larger FFT display grids smooth/interpolate the spectrum, but do not create new physical resolution. True resolution improves only when measurement support increases: larger bandwidth, longer CPI, or larger aperture.
+
+Ambiguity is understood as aliasing:
+
+- range ambiguity from delay modulo PRI,
+- Doppler ambiguity from slow-time sampling at PRF,
+- spatial ambiguity / grating lobes from array spacing beyond the spatial Nyquist condition.
+
+---
+
+### 2.3 Array processing
+
+The learner understands ULA steering vectors, broadside phase, nonzero spatial phase progression, element spacing, aperture, and grating lobes.
+
+Key stable points:
+
+- Broadside ULA target has all-ones steering vector under the normalized convention.
+- Larger aperture narrows the mainlobe.
+- `d > lambda/2` can create spatial aliasing / grating lobes.
+- Spatial FFT and angle scan estimate the same underlying spatial frequency, but FFT bin density is not the same as physical resolution.
+
+MUSIC and MVDR are understood at the framework level:
+
+- MUSIC uses covariance eigendecomposition and separates signal/noise subspaces.
+- MVDR uses covariance information to preserve the look direction while suppressing interference directions.
+- Both require stronger assumptions than conventional beamforming: good covariance estimation, enough snapshots, calibration, source-count assumptions or tuning.
+- Diagonal loading trades adaptivity for robustness: small loading trusts the covariance more; large loading makes MVDR more conventional-like.
+
+---
+
+### 2.4 Detection / CFAR framework
+
+The learner now sees detection as:
+
+> detection-statistic map/cube → thresholding → binary mask → postprocessed detection reports.
+
+CFAR is not tied only to RD maps. It can operate on 1D range profiles, 2D RD / RA / DA maps, or 3D RDA tensors, as long as there is a CUT and surrounding background/training region.
+
+Stable detection ideas:
+
+- CUT statistic can be power, amplitude, log power, beamformed power, likelihood score, learned anomaly score, etc.
+- Design `Pfa` sets the threshold rule; empirical `Pfa` must be measured separately.
+- `Pd`, `Pfa`, SNR, and operating environment must be interpreted together.
+- Lower design `Pfa` raises threshold and usually reduces `Pd` for weak targets.
+- Adjacent positive CFAR cells should not automatically be counted as multiple targets.
+- Binary mask cells are candidate evidence, not confirmed targets.
+- Detection reports need postprocessing: connected components, peak picking, merge/split logic, threshold margin, caveats, and tracker context.
+- A detection far above threshold is more reliable than one barely crossing threshold, but threshold validity also depends on local calibration quality.
+
+---
+
+### 2.5 Clutter, MTI, and slow-target tradeoff
+
+Stationary clutter appears near zero Doppler because its slow-time phase is nearly constant.
+
+Two-pulse MTI suppresses zero-Doppler clutter, but it also creates a low-Doppler notch:
+
+- exactly stationary clutter is strongly suppressed,
+- fast moving targets are mostly preserved,
+- slow targets near zero Doppler can be attenuated or missed.
+
+A key stable insight:
+
+> detectability after MTI depends on the statistic-to-threshold ratio, not absolute target power alone.
+
+A slow target may lose power after MTI but still be detected if the local CFAR threshold also drops enough. Conversely, it may be missed if MTI attenuation pushes the statistic below threshold.
+
+Doppler-spread clutter is harder than exactly stationary clutter because energy leaks away from the exact zero-Doppler bin. A simple zero-Doppler notch or fixed low-Doppler mask can reduce false reports but creates a slow-target blind zone.
+
+---
+
+### 2.6 Clutter maps and anomaly detection
+
+The learner understands clutter maps as temporal background modeling:
+
+> use historical target-free or mostly target-free RD maps to estimate expected background per cell, then compare the current RD map against that background.
+
+Typical score:
+
+```text
+surprise_dB = 10 * log10(currentPower / (backgroundMap + floor))
+```
+
+This reframes detection as anomaly detection under a target-free background model.
+
+Important tradeoffs:
+
+- Static clutter maps fail when clutter drifts.
+- Short recent-history windows track drift faster but absorb persistent slow targets more easily.
+- Long windows resist target contamination but adapt slowly.
+- Mean updates adapt quickly but are vulnerable to target contamination.
+- Median / quantile updates are more robust to high-power target contamination, but quantile choice affects threshold calibration and anomaly direction.
+- A lower background quantile can resist high-power target absorption, but may not be robust to low-power shadow/gap anomalies.
+- Pooled threshold calibration gives more samples but loses cell-specific background behavior; per-cell calibration is more specific but sample-hungry.
+
+---
+
+## 3. Main remaining gaps
+
+The learner is broadly on track. The remaining gaps are mostly nuance, not conceptual failure.
+
+### 3.1 Signal-processing details
+
+Needs more practice with:
+
+- conjugation and sign conventions in matched filtering, Doppler FFT, and beamforming,
+- representation levels: continuous-time signal versus vector versus sampled data cube,
+- physical resolution versus FFT interpolation,
+- Doppler resolution versus unambiguous velocity,
+- ordinary sidelobes versus grating lobes,
+- true target peaks versus noise / sidelobe / grating artifacts.
+
+### 3.2 Adaptive array processing
+
+Needs to keep clear:
+
+- snapshots improve covariance estimation quality, not subspace dimension,
+- MUSIC requires source count, decorrelation assumptions, calibration, and enough snapshots,
+- MVDR look-direction beamforming is different from Capon/MVDR spectral scanning,
+- diagonal loading is a robustness control, not just a numerical trick,
+- mainlobe jammer is harder than sidelobe jammer because it overlaps the desired look direction.
+
+### 3.3 Detection and CFAR
+
+Needs more practice with:
+
+- CUT / guard / training-cell design in 1D, 2D, and 3D,
+- mask-to-report postprocessing,
+- when to split or merge one CFAR blob,
+- edge effects and incomplete training windows,
+- design `Pfa` versus empirical `Pfa`,
+- ROC thinking and operating-point selection,
+- why CFAR is a statistical detector, not merely a rule-based heuristic.
+
+### 3.4 Clutter and learned background models
+
+Needs to keep explicit:
+
+- real clutter is not literally ideal point scatterers; it can be distributed, correlated, Doppler-spread, nonstationary, and heavy-tailed,
+- clutter-map validity depends on stationarity and registration,
+- learned detectors still need fixed-`Pfa` evaluation,
+- heavy tails can both inflate variance and break Gaussian-tail false-alarm assumptions,
+- background modeling can be point-estimate based, uncertainty-aware, or full-distribution/tail-probability based.
+
+---
+
+## 4. Core research abstraction
+
+The most important abstraction from the file is:
+
+> CFAR, clutter maps, temporal background maps, robust quantile maps, and learned anomaly detectors are all variants of the same statistical detection pipeline.
+
+The pipeline is:
+
+```text
+target-free / background data
+        ↓
+estimate or learn H0 background behavior
+        ↓
+compute detection statistic / anomaly score on current frame
+        ↓
+calibrate threshold for desired Pfa
+        ↓
+evaluate Pd, empirical Pfa, false alarms per CPI, and ROC behavior
+```
+
+The deep-learning opportunity is not simply “replace CFAR.”
+
+A better framing is:
+
+> Learn a richer model of `history → current target-free background distribution`, then use that model to compute calibrated anomaly scores while preserving empirical false-alarm control.
+
+Possible learned-model levels:
+
+1. **Point-estimate background model**Predict expected clutter/background power per RD cell.
+2. **Uncertainty-aware background model**Predict background mean plus variance / uncertainty, so the same current power is more anomalous in historically stable cells than in heavy-tailed cells.
+3. **Full target-free distribution model**
+   Learn the full `H0` distribution or tail probability per cell, then declare detections by calibrated tail probability.
+
+The key evaluation constraint remains:
+
+```text
+Do not evaluate only by accuracy.
+Evaluate at fixed empirical Pfa / false alarms per CPI, and report Pd / ROC behavior.
+```
+
+---
+
+## 5. Next recommended learning step
+
+Pause deeper clutter-map research for now and return to Week 5 jammer/interference learning.
+
+Recommended sequence:
+
+1. Conventional beamformer with target plus strong sidelobe jammer.
+2. MVDR spatial nulling against sidelobe jammer.
+3. Diagonal-loading robustness under limited snapshots / steering mismatch.
+4. Mainlobe jammer versus sidelobe jammer.
+5. Broadband noise jammer versus tone/narrowband jammer.
+6. How different jammer types appear in angle spectra, RD maps, and detection statistics.
+
+The next teaching focus should be:
+
+> how interference changes the data cube, how beamformers respond, and why sidelobe interference is easier to suppress than mainlobe interference.
+>
